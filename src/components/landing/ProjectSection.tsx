@@ -16,7 +16,7 @@ const projectFeatures = [{
   icon: Home,
   label: 'Proyecto',
   value: 'Casa Acocui',
-  subvalue: 'Primera casa modelo'
+  subvalue: 'Segunda casa modelo'
 }, {
   icon: TreePine,
   label: 'Ecosistema',
