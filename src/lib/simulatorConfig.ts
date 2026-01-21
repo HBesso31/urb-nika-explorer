@@ -4,8 +4,8 @@
 // ===============================
 // EXCHANGE RATE CONFIGURATION
 // ===============================
-// Exchange rate as of January 21, 2026 (configurable)
-export const EXCHANGE_RATE_USD_TO_MXN = 20.5;
+// Exchange rate as of January 21, 2026 (configurable - update manually)
+export const EXCHANGE_RATE_USD_TO_MXN = 17.59;
 
 // ===============================
 // LOAN SIMULATOR CONFIGURATION
@@ -13,11 +13,12 @@ export const EXCHANGE_RATE_USD_TO_MXN = 20.5;
 export const LOAN_CONFIG = {
   // Round goal and progress
   roundGoal: 750000, // $750,000 MXN total needed
-  currentProgress: 175000, // Current amount raised (update from DB in production)
+  progressPercent: 33, // 33% completed
+  get currentProgress() { return this.roundGoal * (this.progressPercent / 100); }, // $247,500 MXN
   
   // Slider limits (MXN)
   minAmount: 5000,
-  maxAmount: 500000,
+  maxAmount: 750000, // Allow up to full goal
   defaultAmount: 25000,
   step: 5000,
   
@@ -33,11 +34,12 @@ export const LOAN_CONFIG = {
 export const INVESTMENT_CONFIG = {
   // Round goal and progress
   roundGoal: 1150000, // $1,150,000 MXN investment needed
-  currentProgress: 84614, // Pre-sale/pre-investment amount
+  progressPercent: 7, // 7% completed
+  get currentProgress() { return this.roundGoal * (this.progressPercent / 100); }, // $80,500 MXN
   
-  // Slider limits (MXN)
+  // Slider limits (MXN) - max allows reaching full goal
   minAmount: 10000,
-  maxAmount: 500000,
+  maxAmount: 1150000, // Allow up to full goal
   defaultAmount: 50000,
   step: 10000,
   
