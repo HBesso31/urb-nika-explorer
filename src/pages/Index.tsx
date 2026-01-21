@@ -6,7 +6,7 @@ import { ProblemSection } from '@/components/landing/ProblemSection';
 import { SolutionSection } from '@/components/landing/SolutionSection';
 import { ProjectSection } from '@/components/landing/ProjectSection';
 import { NonFinancialBenefitsSection } from '@/components/landing/NonFinancialBenefitsSection';
-import { GallerySection } from '@/components/landing/GallerySection';
+
 import { SimulatorPanelV2 } from '@/components/landing/SimulatorPanelV2';
 import { CTASection } from '@/components/landing/CTASection';
 
@@ -43,7 +43,6 @@ const Index = () => {
             <div className="lg:col-span-3 space-y-0">
               <ProjectSection />
               <NonFinancialBenefitsSection />
-              <GallerySection />
             </div>
 
             {/* Right column - simulator */}
