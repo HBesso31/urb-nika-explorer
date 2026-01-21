@@ -9,8 +9,14 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { 
-  formatCurrency, 
-} from '@/lib/simulatorV2';
+  EXCHANGE_RATE_USD_TO_MXN,
+  LOAN_CONFIG,
+  INVESTMENT_CONFIG,
+  calculateLoanAmortization,
+  calculateInvestmentReturns,
+  getInvestmentBenefits,
+  formatByCurrency,
+} from '@/lib/simulatorConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { useParticipations, CreateParticipationInput } from '@/hooks/useParticipations';
 import { toast } from 'sonner';
@@ -22,16 +28,13 @@ interface SimulatorPanelV2Props {
 
 type Currency = 'MXN' | 'USD';
 
-// Exchange rate (approximate)
-const USD_TO_MXN = 17.5;
-
 // Currency context to share between components
 const CurrencyContext = createContext<{
   currency: Currency;
-  formatAmount: (amount: number) => string;
+  formatAmount: (amount: number, decimals?: number) => string;
 }>({
   currency: 'MXN',
-  formatAmount: (amount) => formatCurrency(amount),
+  formatAmount: (amount) => formatByCurrency(amount, 'MXN'),
 });
 
 const useCurrency = () => useContext(CurrencyContext);
@@ -60,17 +63,6 @@ function CurrencyToggle({ currency, onToggle }: { currency: Currency; onToggle: 
   );
 }
 
-const INVESTMENT_LIMITS = { min: 1000, max: 100000, default: 10000 };
-const LOAN_LIMITS = { min: 5000, max: 500000, default: 50000 };
-
-// Loan round goal configuration
-const LOAN_ROUND_GOAL = 500000;
-const LOAN_ROUND_CURRENT = 175000; // This would come from DB in production
-
-// Fixed loan configuration (single scenario)
-const LOAN_ANNUAL_RATE = 8; // 8% annual
-const LOAN_TERM_MONTHS = 48; // Fixed 48 months
-
 export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: SimulatorPanelV2Props) {
   const [tab, setTab] = useState<string>(activeTab);
   const [currency, setCurrency] = useState<Currency>('MXN');
@@ -89,17 +81,8 @@ export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: Simu
     setCurrency(prev => prev === 'MXN' ? 'USD' : 'MXN');
   };
 
-  const formatAmount = (amount: number) => {
-    if (currency === 'USD') {
-      const usdAmount = amount / USD_TO_MXN;
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(usdAmount);
-    }
-    return formatCurrency(amount);
+  const formatAmount = (amount: number, decimals = 0) => {
+    return formatByCurrency(amount, currency, decimals);
   };
 
   return (
@@ -141,7 +124,14 @@ export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: Simu
               </TabsContent>
             </Tabs>
 
-            <div className="mt-6 p-3 rounded-lg bg-muted/50 border border-border/50">
+            {/* Exchange rate disclaimer */}
+            <div className="mt-4 p-2 rounded-md bg-muted/30 border border-border/30">
+              <p className="text-[10px] text-muted-foreground text-center">
+                TC: 1 USD = {EXCHANGE_RATE_USD_TO_MXN} MXN • Valores actualizables al tipo de cambio del día. Los montos mostrados son informativos.
+              </p>
+            </div>
+
+            <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border/50">
               <p className="text-xs text-muted-foreground flex items-start gap-2">
                 <Info className="h-4 w-4 shrink-0 mt-0.5" />
                 Esta es una simulación informativa, no una oferta de valores. Los rendimientos 
@@ -161,32 +151,23 @@ function InvestmentSimulatorV2() {
   const { createParticipation } = useParticipations();
   const { formatAmount } = useCurrency();
   
-  const [amount, setAmount] = useState(INVESTMENT_LIMITS.default);
+  const [amount, setAmount] = useState(INVESTMENT_CONFIG.defaultAmount);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Calculate estimated ranges (conservative to optimistic)
+  // Calculate real investment returns
   const results = useMemo(() => {
-    const monthlyRentMin = amount * 0.004; // ~4.8% annual (conservative)
-    const monthlyRentMax = amount * 0.008; // ~9.6% annual (optimistic)
-    
-    const longTermGainMin = amount * 0.3; // 30% appreciation (conservative, 5+ years)
-    const longTermGainMax = amount * 0.8; // 80% appreciation (optimistic, 5+ years)
-    
-    return {
-      monthlyRentMin,
-      monthlyRentMax,
-      longTermGainMin,
-      longTermGainMax,
-    };
+    return calculateInvestmentReturns(amount);
   }, [amount]);
 
-  // Determine non-financial benefits based on amount
+  // Get applicable benefits
   const benefits = useMemo(() => {
-    const list = [];
-    if (amount >= 1000) list.push({ icon: Users, text: 'Comunidad exclusiva' });
-    if (amount >= 5000) list.push({ icon: Vote, text: 'Voz y voto en decisiones' });
-    if (amount >= 10000) list.push({ icon: Home, text: 'Acceso a la casa' });
-    return list;
+    const benefitList = getInvestmentBenefits(amount);
+    const iconMap: Record<string, typeof Users> = {
+      community: Users,
+      governance: Vote,
+      houseAccess: Home,
+    };
+    return benefitList.map(b => ({ icon: iconMap[b.key] || Users, text: b.text }));
   }, [amount]);
 
   const handleDeclareIntent = async () => {
@@ -199,7 +180,7 @@ function InvestmentSimulatorV2() {
     const input: CreateParticipationInput = {
       type: 'investment',
       amount,
-      termMonths: 60, // Default long-term
+      termMonths: INVESTMENT_CONFIG.investmentHorizonYears * 12,
       scenario: 'base',
     };
 
@@ -219,6 +200,20 @@ function InvestmentSimulatorV2() {
 
   return (
     <div className="space-y-6">
+      {/* Round progress */}
+      <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-medium text-foreground">Meta de inversión</span>
+          <span className="text-sm text-muted-foreground">
+            {formatAmount(INVESTMENT_CONFIG.currentProgress)} / {formatAmount(INVESTMENT_CONFIG.roundGoal)}
+          </span>
+        </div>
+        <Progress value={(INVESTMENT_CONFIG.currentProgress / INVESTMENT_CONFIG.roundGoal) * 100} className="h-2 mb-2" />
+        <p className="text-xs text-muted-foreground">
+          {((INVESTMENT_CONFIG.currentProgress / INVESTMENT_CONFIG.roundGoal) * 100).toFixed(0)}% completado
+        </p>
+      </div>
+
       {/* Amount */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
@@ -228,43 +223,56 @@ function InvestmentSimulatorV2() {
           </span>
         </div>
         <Slider
-          min={INVESTMENT_LIMITS.min}
-          max={INVESTMENT_LIMITS.max}
-          step={1000}
+          min={INVESTMENT_CONFIG.minAmount}
+          max={INVESTMENT_CONFIG.maxAmount}
+          step={INVESTMENT_CONFIG.step}
           value={[amount]}
           onValueChange={([v]) => setAmount(v)}
         />
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{formatAmount(INVESTMENT_LIMITS.min)}</span>
-          <span>{formatAmount(INVESTMENT_LIMITS.max)}</span>
+          <span>{formatAmount(INVESTMENT_CONFIG.minAmount)}</span>
+          <span>{formatAmount(INVESTMENT_CONFIG.maxAmount)}</span>
         </div>
       </div>
 
-      {/* Results as ranges */}
+      {/* Results */}
       <motion.div
         key={amount}
         initial={{ opacity: 0.8, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="p-5 rounded-xl bg-primary/5 border border-primary/20 space-y-4"
+        className="p-5 rounded-xl bg-primary/5 border border-primary/20 space-y-3"
       >
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Renta mensual estimada</p>
-            <p className="text-lg font-semibold text-foreground">
-              {formatAmount(results.monthlyRentMin)} – {formatAmount(results.monthlyRentMax)}
-            </p>
-          </div>
-          
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Ganancia potencial a largo plazo</p>
-            <p className="text-lg font-semibold text-secondary">
-              +{formatAmount(results.longTermGainMin)} – +{formatAmount(results.longTermGainMax)}
-            </p>
-          </div>
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-muted-foreground">Participación en propiedad</span>
+          <span className="font-semibold">{results.participationPercent.toFixed(3)}%</span>
+        </div>
+        <div className="h-px bg-border" />
+        
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Dividendo mensual por renta</p>
+          <p className="text-lg font-semibold text-foreground">
+            {formatAmount(results.monthlyDividend)}
+          </p>
+        </div>
+        
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Ganancia estimada a la venta (5 años)</p>
+          <p className="text-lg font-semibold text-secondary">
+            +{formatAmount(results.saleProfit)}
+          </p>
         </div>
 
-        <p className="text-xs text-muted-foreground border-t border-border/50 pt-3">
-          La decisión de venta se toma colectivamente. No hay fecha fija de salida.
+        <div className="h-px bg-border" />
+        
+        <div className="flex justify-between items-center">
+          <span className="font-medium">Ganancias totales estimadas</span>
+          <span className="text-xl font-display font-bold text-primary">
+            +{formatAmount(results.totalGains)}
+          </span>
+        </div>
+
+        <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">
+          ROI: {results.roi.toFixed(1)}% • Recuperación: ~{Math.round(results.roiMonths)} meses
         </p>
       </motion.div>
 
@@ -282,6 +290,13 @@ function InvestmentSimulatorV2() {
           </div>
         </div>
       )}
+
+      {/* Contribution message */}
+      <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 text-center">
+        <p className="text-sm text-foreground">
+          Aportarías el <span className="font-semibold text-accent">{results.roundContributionPercent.toFixed(1)}%</span> de la meta de inversión
+        </p>
+      </div>
 
       {/* CTA */}
       <Button 
@@ -313,29 +328,16 @@ function LoanSimulatorV2() {
   const { createParticipation } = useParticipations();
   const { formatAmount } = useCurrency();
   
-  const [amount, setAmount] = useState(LOAN_LIMITS.default);
+  const [amount, setAmount] = useState(LOAN_CONFIG.defaultAmount);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Calculate real amortization
+  // Calculate real amortization with decreasing interest
   const result = useMemo(() => {
-    const monthlyRate = LOAN_ANNUAL_RATE / 100 / 12;
-    const n = LOAN_TERM_MONTHS;
-    
-    // Monthly payment formula (PMT)
-    const monthlyPayment = amount * (monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1);
-    const totalReceived = monthlyPayment * n;
-    const totalInterest = totalReceived - amount;
-    
-    return {
-      monthlyPayment: Math.round(monthlyPayment * 100) / 100,
-      totalReceived: Math.round(totalReceived * 100) / 100,
-      totalInterest: Math.round(totalInterest * 100) / 100,
-    };
+    return calculateLoanAmortization(amount);
   }, [amount]);
 
   // Calculate progress toward loan round goal
-  const progressPercent = Math.min((LOAN_ROUND_CURRENT / LOAN_ROUND_GOAL) * 100, 100);
-  const userContributionPercent = ((amount / LOAN_ROUND_GOAL) * 100).toFixed(1);
+  const progressPercent = Math.min((LOAN_CONFIG.currentProgress / LOAN_CONFIG.roundGoal) * 100, 100);
 
   const handleDeclareIntent = async () => {
     if (!user) {
@@ -347,7 +349,7 @@ function LoanSimulatorV2() {
     const input: CreateParticipationInput = {
       type: 'loan',
       amount,
-      termMonths: LOAN_TERM_MONTHS,
+      termMonths: LOAN_CONFIG.termMonths,
       scenario: 'base',
     };
 
@@ -372,7 +374,7 @@ function LoanSimulatorV2() {
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-foreground">Meta de la ronda</span>
           <span className="text-sm text-muted-foreground">
-            {formatAmount(LOAN_ROUND_CURRENT)} / {formatAmount(LOAN_ROUND_GOAL)}
+            {formatAmount(LOAN_CONFIG.currentProgress)} / {formatAmount(LOAN_CONFIG.roundGoal)}
           </span>
         </div>
         <Progress value={progressPercent} className="h-2 mb-2" />
@@ -390,15 +392,15 @@ function LoanSimulatorV2() {
           </span>
         </div>
         <Slider
-          min={LOAN_LIMITS.min}
-          max={LOAN_LIMITS.max}
-          step={5000}
+          min={LOAN_CONFIG.minAmount}
+          max={LOAN_CONFIG.maxAmount}
+          step={LOAN_CONFIG.step}
           value={[amount]}
           onValueChange={([v]) => setAmount(v)}
         />
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{formatAmount(LOAN_LIMITS.min)}</span>
-          <span>{formatAmount(LOAN_LIMITS.max)}</span>
+          <span>{formatAmount(LOAN_CONFIG.minAmount)}</span>
+          <span>{formatAmount(LOAN_CONFIG.maxAmount)}</span>
         </div>
       </div>
 
@@ -430,7 +432,7 @@ function LoanSimulatorV2() {
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">Liquidación</p>
-              <p className="text-xs text-muted-foreground">Anticipada si hay inversión, o en 48 meses</p>
+              <p className="text-xs text-muted-foreground">Anticipada si hay inversión, o en {LOAN_CONFIG.termMonths} meses</p>
             </div>
           </div>
         </div>
@@ -448,33 +450,42 @@ function LoanSimulatorV2() {
           <span className="font-medium">{formatAmount(amount)}</span>
         </div>
         <div className="flex justify-between items-center text-sm">
+          <span className="text-muted-foreground">Participación</span>
+          <span className="font-medium">{result.participationPercent.toFixed(2)}%</span>
+        </div>
+        <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Tasa anual</span>
-          <span className="font-medium">{LOAN_ANNUAL_RATE}%</span>
+          <span className="font-medium">{LOAN_CONFIG.annualRate}%</span>
         </div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Plazo máximo</span>
-          <span className="font-medium">{LOAN_TERM_MONTHS} meses</span>
+          <span className="font-medium">{LOAN_CONFIG.termMonths} meses</span>
         </div>
         <div className="h-px bg-border" />
         <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Pago mensual estimado</span>
-          <span className="font-semibold">{formatAmount(result.monthlyPayment)}</span>
+          <span className="text-muted-foreground">Primer pago (mes 1)</span>
+          <span className="font-semibold">{formatAmount(result.firstMonthPayment)}</span>
         </div>
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-muted-foreground">Último pago (mes {LOAN_CONFIG.termMonths})</span>
+          <span className="font-semibold">{formatAmount(result.lastMonthPayment)}</span>
+        </div>
+        <div className="h-px bg-border" />
         <div className="flex justify-between items-center">
           <span className="font-medium">Total estimado que recibes</span>
           <span className="text-xl font-display font-bold text-secondary">
-            {formatAmount(result.totalReceived)}
+            {formatAmount(result.totalPayment)}
           </span>
         </div>
         <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">
-          Intereses totales: {formatAmount(result.totalInterest)} (amortización real, los intereses disminuyen con cada pago)
+          Intereses totales: {formatAmount(result.totalInterest)} (capital fijo + intereses decrecientes)
         </p>
       </motion.div>
 
       {/* User contribution message */}
       <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 text-center">
         <p className="text-sm text-foreground">
-          ¡Tú aportarías el <span className="font-semibold text-accent">{userContributionPercent}%</span> del monto total!
+          ¡Tú aportarías el <span className="font-semibold text-accent">{result.participationPercent.toFixed(1)}%</span> del monto total!
         </p>
         <p className="text-xs text-muted-foreground mt-1">Gracias por hacerlo posible.</p>
       </div>
