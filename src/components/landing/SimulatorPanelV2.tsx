@@ -87,10 +87,10 @@ export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: Simu
 
   return (
     <CurrencyContext.Provider value={{ currency, formatAmount }}>
-      <Card className="sticky top-8 shadow-strong border-border/50 overflow-hidden lg:max-h-[calc(100vh-120px)] flex flex-col">
+      <Card className="shadow-strong border-border/50 overflow-hidden">
         <div className="absolute inset-0 gradient-card" />
-        <div className="relative z-10 flex flex-col min-h-0">
-          <CardHeader className="pb-4 shrink-0">
+        <div className="relative z-10">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-2xl font-display">Simulador</CardTitle>
@@ -102,7 +102,7 @@ export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: Simu
             </div>
           </CardHeader>
 
-          <CardContent className="flex-1 overflow-y-auto min-h-0">
+          <CardContent>
             <Tabs value={tab} onValueChange={handleTabChange}>
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="investment" className="gap-2">
