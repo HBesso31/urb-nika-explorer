@@ -126,26 +126,30 @@ const architecturalSpecs = {
   terreno: '289.66 m²',
   construccion: '~180 m² (estimado)',
   precioPorM2: '$18,000 - $22,000 MXN',
-  acabados: [
-    'Pisos de concreto pulido y madera certificada',
-    'Muros de adobe estabilizado y tabique aparente',
-    'Ventanería de aluminio con doble vidrio',
-    'Techos verdes y aislamiento térmico natural',
-    'Instalaciones eléctricas e hidráulicas de alta eficiencia'
-  ],
-  valorAgregado: [
-    'Diseño arquitectónico con firma profesional',
-    'Materiales de larga durabilidad y bajo mantenimiento',
-    'Sistemas integrados que reducen costos operativos',
-    'Atractivo para mercado de renta vacacional premium',
-    'Documentación completa para reventa'
-  ]
 };
+
+const unifiedDesignFeatures = [
+  'Diseño arquitectónico integral con enfoque regenerativo',
+  'Soberanía hídrica, eléctrica, alimentaria, y de gestión de residuos orgánicos',
+  'Construcción bioclimática con materiales de la región y 50 años más durables que las tradicionales',
+  'Bajo mantenimiento y alto desempeño térmico',
+  'Pozos provenzales y techo como jardín polinizador',
+  'Sistemas de monitoreo anonimizado de salud en tiempo real',
+  'Se construirá para poner a rentar',
+  'Servirá como casa muestra para los terrenos aledaños que no pueden construir por la falta de acceso a servicios públicos',
+  'Integración de tecnología y cuidado familiar que incrementa el atractivo del inmueble ante un mercado que valora bienestar, privacidad y soberanía',
+];
 
 const galleryImages = [
   { src: plan1, alt: 'Plano arquitectónico planta baja', title: 'Planta Baja' },
   { src: plan2, alt: 'Plano arquitectónico planta alta', title: 'Planta Alta' },
-  { src: plan3, alt: 'Cortes y elevaciones', title: 'Cortes' }
+  { src: plan3, alt: 'Cortes y elevaciones', title: 'Cortes' },
+  { src: null, alt: 'Render exterior', title: 'Render Exterior' },
+  { src: null, alt: 'Render interior', title: 'Render Interior' },
+  { src: null, alt: 'Vista aérea', title: 'Vista Aérea' },
+  { src: null, alt: 'Detalle de acabados', title: 'Acabados' },
+  { src: null, alt: 'Áreas verdes', title: 'Áreas Verdes' },
+  { src: null, alt: 'Video de la casa', title: 'Video' },
 ];
 
 export function ProjectSection() {
@@ -368,7 +372,7 @@ export function ProjectSection() {
                     Una inversión diseñada para crecer en valor y generar retornos a largo plazo.
                   </p>
 
-                  {/* Gallery */}
+                  {/* Gallery - 9 visual blocks */}
                   <div className="grid grid-cols-3 gap-3 mb-6">
                     {galleryImages.map((image, index) => (
                       <motion.div
@@ -376,14 +380,28 @@ export function ProjectSection() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                        className="aspect-[4/3] rounded-lg overflow-hidden bg-muted"
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        className="aspect-[4/3] rounded-lg overflow-hidden bg-muted relative group"
                       >
-                        <img 
-                          src={image.src} 
-                          alt={image.alt}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        />
+                        {image.src ? (
+                          <img 
+                            src={image.src} 
+                            alt={image.alt}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-muted/80 border-2 border-dashed border-border">
+                            <div className="p-2 rounded-lg bg-muted-foreground/10 mb-2">
+                              <Building2 className="h-6 w-6 text-muted-foreground/50" />
+                            </div>
+                            <span className="text-xs text-muted-foreground/70 text-center px-2">{image.title}</span>
+                          </div>
+                        )}
+                        {image.src && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                            <span className="text-xs text-white font-medium">{image.title}</span>
+                          </div>
+                        )}
                       </motion.div>
                     ))}
                   </div>
@@ -404,30 +422,16 @@ export function ProjectSection() {
                     </div>
                   </div>
 
-                  {/* Two columns: acabados + valor */}
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                      <h4 className="font-medium text-foreground mb-3">Acabados y Diseño</h4>
-                      <ul className="space-y-2">
-                        {architecturalSpecs.acabados.map((item, index) => (
-                          <li key={index} className="flex items-start gap-3 text-sm text-muted-foreground">
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="p-4 rounded-lg bg-secondary/10 border border-secondary/20">
-                      <h4 className="font-medium text-foreground mb-3">Valor Agregado</h4>
-                      <ul className="space-y-2">
-                        {architecturalSpecs.valorAgregado.map((item, index) => (
-                          <li key={index} className="flex items-start gap-3 text-sm text-muted-foreground">
-                            <div className="w-1.5 h-1.5 rounded-full bg-secondary shrink-0 mt-1.5" />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                  {/* Unified Design & Features */}
+                  <div className="p-5 rounded-lg bg-secondary/10 border border-secondary/20">
+                    <ul className="space-y-3">
+                      {unifiedDesignFeatures.map((item, index) => (
+                        <li key={index} className="flex items-start gap-3 text-sm text-foreground">
+                          <div className="w-2 h-2 rounded-full bg-secondary shrink-0 mt-1.5" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </CardContent>
               </Card>
