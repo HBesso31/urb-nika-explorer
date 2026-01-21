@@ -21,13 +21,9 @@ export function CTASection() {
           </div>
 
           <div className="relative z-10 max-w-2xl mx-auto">
-            <h2 className="text-3xl lg:text-4xl font-display text-primary-foreground mb-4">
+            <h2 className="text-3xl lg:text-4xl font-display text-primary-foreground mb-6">
               ¿Listo para ser parte de Urbánika?
             </h2>
-            <p className="text-lg text-primary-foreground/80 mb-8">
-              Regístrate para declarar tu intención de participación. 
-              <strong className="text-primary-foreground"> No es un pago, es un registro de interés.</strong>
-            </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/auth?mode=register">
@@ -42,11 +38,6 @@ export function CTASection() {
                 </Button>
               </Link>
             </div>
-
-            <p className="text-sm text-primary-foreground/60 mt-6">
-              Este registro no implica compromiso financiero. Los montos se formalizarán 
-              cuando la infraestructura blockchain esté lista.
-            </p>
           </div>
         </motion.div>
       </div>
