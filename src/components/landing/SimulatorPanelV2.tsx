@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, createContext, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { TrendingUp, Wallet, Info, ArrowRight, Loader2, ArrowDown, RefreshCw, CheckCircle2, Vote, Home, Users } from 'lucide-react';
@@ -20,6 +20,46 @@ interface SimulatorPanelV2Props {
   onTabChange?: (tab: 'investment' | 'loan') => void;
 }
 
+type Currency = 'MXN' | 'USD';
+
+// Exchange rate (approximate)
+const USD_TO_MXN = 17.5;
+
+// Currency context to share between components
+const CurrencyContext = createContext<{
+  currency: Currency;
+  formatAmount: (amount: number) => string;
+}>({
+  currency: 'MXN',
+  formatAmount: (amount) => formatCurrency(amount),
+});
+
+const useCurrency = () => useContext(CurrencyContext);
+
+// Currency toggle button component
+function CurrencyToggle({ currency, onToggle }: { currency: Currency; onToggle: () => void }) {
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={onToggle}
+      className="gap-2 h-8 px-3 text-xs font-medium"
+    >
+      {currency === 'MXN' ? (
+        <>
+          <span className="text-base">🇲🇽</span>
+          MXN
+        </>
+      ) : (
+        <>
+          <span className="text-base">🇺🇸</span>
+          USD
+        </>
+      )}
+    </Button>
+  );
+}
+
 const INVESTMENT_LIMITS = { min: 1000, max: 100000, default: 10000 };
 const LOAN_LIMITS = { min: 5000, max: 500000, default: 50000 };
 
@@ -33,6 +73,7 @@ const LOAN_TERM_MONTHS = 48; // Fixed 48 months
 
 export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: SimulatorPanelV2Props) {
   const [tab, setTab] = useState<string>(activeTab);
+  const [currency, setCurrency] = useState<Currency>('MXN');
 
   // Sync internal state when parent changes activeTab
   useEffect(() => {
@@ -44,49 +85,73 @@ export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: Simu
     onTabChange?.(value as 'investment' | 'loan');
   };
 
+  const toggleCurrency = () => {
+    setCurrency(prev => prev === 'MXN' ? 'USD' : 'MXN');
+  };
+
+  const formatAmount = (amount: number) => {
+    if (currency === 'USD') {
+      const usdAmount = amount / USD_TO_MXN;
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(usdAmount);
+    }
+    return formatCurrency(amount);
+  };
+
   return (
-    <Card className="sticky top-8 shadow-strong border-border/50 overflow-hidden">
-      <div className="absolute inset-0 gradient-card" />
-      <div className="relative z-10">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-2xl font-display">Simulador</CardTitle>
-          <CardDescription>
-            Calcula tu retorno estimado y declara tu intención
-          </CardDescription>
-        </CardHeader>
+    <CurrencyContext.Provider value={{ currency, formatAmount }}>
+      <Card className="sticky top-8 shadow-strong border-border/50 overflow-hidden">
+        <div className="absolute inset-0 gradient-card" />
+        <div className="relative z-10">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl font-display">Simulador</CardTitle>
+                <CardDescription>
+                  Calcula tu retorno estimado y declara tu intención
+                </CardDescription>
+              </div>
+              <CurrencyToggle currency={currency} onToggle={toggleCurrency} />
+            </div>
+          </CardHeader>
 
-        <CardContent>
-          <Tabs value={tab} onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="investment" className="gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Inversión
-              </TabsTrigger>
-              <TabsTrigger value="loan" className="gap-2">
-                <Wallet className="h-4 w-4" />
-                Préstamo
-              </TabsTrigger>
-            </TabsList>
+          <CardContent>
+            <Tabs value={tab} onValueChange={handleTabChange}>
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="investment" className="gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Inversión
+                </TabsTrigger>
+                <TabsTrigger value="loan" className="gap-2">
+                  <Wallet className="h-4 w-4" />
+                  Préstamo
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="investment">
-              <InvestmentSimulatorV2 />
-            </TabsContent>
+              <TabsContent value="investment">
+                <InvestmentSimulatorV2 />
+              </TabsContent>
 
-            <TabsContent value="loan">
-              <LoanSimulatorV2 />
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="loan">
+                <LoanSimulatorV2 />
+              </TabsContent>
+            </Tabs>
 
-          <div className="mt-6 p-3 rounded-lg bg-muted/50 border border-border/50">
-            <p className="text-xs text-muted-foreground flex items-start gap-2">
-              <Info className="h-4 w-4 shrink-0 mt-0.5" />
-              Esta es una simulación informativa, no una oferta de valores. Los rendimientos 
-              son estimados y pueden variar según las condiciones del mercado.
-            </p>
-          </div>
-        </CardContent>
-      </div>
-    </Card>
+            <div className="mt-6 p-3 rounded-lg bg-muted/50 border border-border/50">
+              <p className="text-xs text-muted-foreground flex items-start gap-2">
+                <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                Esta es una simulación informativa, no una oferta de valores. Los rendimientos 
+                son estimados y pueden variar según las condiciones del mercado.
+              </p>
+            </div>
+          </CardContent>
+        </div>
+      </Card>
+    </CurrencyContext.Provider>
   );
 }
 
@@ -94,6 +159,7 @@ function InvestmentSimulatorV2() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { createParticipation } = useParticipations();
+  const { formatAmount } = useCurrency();
   
   const [amount, setAmount] = useState(INVESTMENT_LIMITS.default);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -158,7 +224,7 @@ function InvestmentSimulatorV2() {
         <div className="flex justify-between items-center">
           <Label>Monto a invertir</Label>
           <span className="text-lg font-semibold text-primary">
-            {formatCurrency(amount)}
+            {formatAmount(amount)}
           </span>
         </div>
         <Slider
@@ -169,8 +235,8 @@ function InvestmentSimulatorV2() {
           onValueChange={([v]) => setAmount(v)}
         />
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{formatCurrency(INVESTMENT_LIMITS.min)}</span>
-          <span>{formatCurrency(INVESTMENT_LIMITS.max)}</span>
+          <span>{formatAmount(INVESTMENT_LIMITS.min)}</span>
+          <span>{formatAmount(INVESTMENT_LIMITS.max)}</span>
         </div>
       </div>
 
@@ -185,14 +251,14 @@ function InvestmentSimulatorV2() {
           <div>
             <p className="text-sm text-muted-foreground mb-1">Renta mensual estimada</p>
             <p className="text-lg font-semibold text-foreground">
-              {formatCurrency(results.monthlyRentMin)} – {formatCurrency(results.monthlyRentMax)}
+              {formatAmount(results.monthlyRentMin)} – {formatAmount(results.monthlyRentMax)}
             </p>
           </div>
           
           <div>
             <p className="text-sm text-muted-foreground mb-1">Ganancia potencial a largo plazo</p>
             <p className="text-lg font-semibold text-secondary">
-              +{formatCurrency(results.longTermGainMin)} – +{formatCurrency(results.longTermGainMax)}
+              +{formatAmount(results.longTermGainMin)} – +{formatAmount(results.longTermGainMax)}
             </p>
           </div>
         </div>
@@ -245,6 +311,7 @@ function LoanSimulatorV2() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { createParticipation } = useParticipations();
+  const { formatAmount } = useCurrency();
   
   const [amount, setAmount] = useState(LOAN_LIMITS.default);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -305,7 +372,7 @@ function LoanSimulatorV2() {
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-foreground">Meta de la ronda</span>
           <span className="text-sm text-muted-foreground">
-            {formatCurrency(LOAN_ROUND_CURRENT)} / {formatCurrency(LOAN_ROUND_GOAL)}
+            {formatAmount(LOAN_ROUND_CURRENT)} / {formatAmount(LOAN_ROUND_GOAL)}
           </span>
         </div>
         <Progress value={progressPercent} className="h-2 mb-2" />
@@ -319,7 +386,7 @@ function LoanSimulatorV2() {
         <div className="flex justify-between items-center">
           <Label>Monto que prestas</Label>
           <span className="text-lg font-semibold text-secondary">
-            {formatCurrency(amount)}
+            {formatAmount(amount)}
           </span>
         </div>
         <Slider
@@ -330,8 +397,8 @@ function LoanSimulatorV2() {
           onValueChange={([v]) => setAmount(v)}
         />
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{formatCurrency(LOAN_LIMITS.min)}</span>
-          <span>{formatCurrency(LOAN_LIMITS.max)}</span>
+          <span>{formatAmount(LOAN_LIMITS.min)}</span>
+          <span>{formatAmount(LOAN_LIMITS.max)}</span>
         </div>
       </div>
 
@@ -378,7 +445,7 @@ function LoanSimulatorV2() {
       >
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Monto que prestas</span>
-          <span className="font-medium">{formatCurrency(amount)}</span>
+          <span className="font-medium">{formatAmount(amount)}</span>
         </div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Tasa anual</span>
@@ -391,16 +458,16 @@ function LoanSimulatorV2() {
         <div className="h-px bg-border" />
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Pago mensual estimado</span>
-          <span className="font-semibold">{formatCurrency(result.monthlyPayment)}</span>
+          <span className="font-semibold">{formatAmount(result.monthlyPayment)}</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="font-medium">Total estimado que recibes</span>
           <span className="text-xl font-display font-bold text-secondary">
-            {formatCurrency(result.totalReceived)}
+            {formatAmount(result.totalReceived)}
           </span>
         </div>
         <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">
-          Intereses totales: {formatCurrency(result.totalInterest)} (amortización real, los intereses disminuyen con cada pago)
+          Intereses totales: {formatAmount(result.totalInterest)} (amortización real, los intereses disminuyen con cada pago)
         </p>
       </motion.div>
 
