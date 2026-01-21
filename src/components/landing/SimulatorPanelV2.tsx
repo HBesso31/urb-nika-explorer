@@ -87,10 +87,10 @@ export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: Simu
 
   return (
     <CurrencyContext.Provider value={{ currency, formatAmount }}>
-      <Card className="sticky top-8 shadow-strong border-border/50 overflow-hidden">
+      <Card className="sticky top-8 shadow-strong border-border/50 overflow-hidden lg:max-h-[calc(100vh-120px)] flex flex-col">
         <div className="absolute inset-0 gradient-card" />
-        <div className="relative z-10">
-          <CardHeader className="pb-4">
+        <div className="relative z-10 flex flex-col min-h-0">
+          <CardHeader className="pb-4 shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-2xl font-display">Simulador</CardTitle>
@@ -102,7 +102,7 @@ export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: Simu
             </div>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="flex-1 overflow-y-auto min-h-0">
             <Tabs value={tab} onValueChange={handleTabChange}>
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="investment" className="gap-2">
@@ -447,11 +447,7 @@ function LoanSimulatorV2() {
       >
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Monto que prestas</span>
-          <span className="font-medium">{formatAmount(amount)}</span>
-        </div>
-        <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Participación</span>
-          <span className="font-medium">{result.participationPercent.toFixed(2)}%</span>
+          <span className="font-semibold text-foreground">{formatAmount(amount)}</span>
         </div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Tasa anual</span>
@@ -463,32 +459,20 @@ function LoanSimulatorV2() {
         </div>
         <div className="h-px bg-border" />
         <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Primer pago (mes 1)</span>
-          <span className="font-semibold">{formatAmount(result.firstMonthPayment)}</span>
-        </div>
-        <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Último pago (mes {LOAN_CONFIG.termMonths})</span>
-          <span className="font-semibold">{formatAmount(result.lastMonthPayment)}</span>
+          <span className="text-muted-foreground">Pago mensual promedio</span>
+          <span className="font-semibold">{formatAmount(result.averagePayment)}</span>
         </div>
         <div className="h-px bg-border" />
         <div className="flex justify-between items-center">
-          <span className="font-medium">Total estimado que recibes</span>
+          <span className="font-medium">Total que recibes</span>
           <span className="text-xl font-display font-bold text-secondary">
             {formatAmount(result.totalPayment)}
           </span>
         </div>
         <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">
-          Intereses totales: {formatAmount(result.totalInterest)} (capital fijo + intereses decrecientes)
+          Intereses totales: {formatAmount(result.totalInterest)} • Capital fijo + intereses decrecientes
         </p>
       </motion.div>
-
-      {/* User contribution message */}
-      <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 text-center">
-        <p className="text-sm text-foreground">
-          ¡Tú aportarías el <span className="font-semibold text-accent">{result.participationPercent.toFixed(1)}%</span> del monto total!
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">Gracias por hacerlo posible.</p>
-      </div>
 
       {/* CTA */}
       <Button 
