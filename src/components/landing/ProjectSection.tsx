@@ -10,13 +10,13 @@ const projectFeatures = [{
 }, {
   icon: Ruler,
   label: 'Superficie',
-  value: '12,500 m²',
+  value: '289.66 m²',
   subvalue: '8,750 m² construibles'
 }, {
   icon: Home,
   label: 'Proyecto',
   value: 'Casa Acocui',
-  subvalue: 'Primera casa modelo'
+  subvalue: 'Segunda casa modelo'
 }, {
   icon: TreePine,
   label: 'Ecosistema',
@@ -63,7 +63,14 @@ export function ProjectSection() {
         }}>
               <Card className="h-full gradient-card border-border/50 hover-lift">
                 <CardContent className="p-5">
-                  
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <feature.icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {feature.label}
+                    </span>
+                  </div>
                   <p className="text-lg font-semibold text-foreground">
                     {feature.value}
                   </p>
