@@ -1,0 +1,233 @@
+// Simulator configuration with real values from "Simuladores para levantar capital"
+// This file serves as the single source of truth for all simulator calculations
+
+// ===============================
+// EXCHANGE RATE CONFIGURATION
+// ===============================
+// Exchange rate as of January 21, 2026 (configurable)
+export const EXCHANGE_RATE_USD_TO_MXN = 20.5;
+
+// ===============================
+// LOAN SIMULATOR CONFIGURATION
+// ===============================
+export const LOAN_CONFIG = {
+  // Round goal and progress
+  roundGoal: 750000, // $750,000 MXN total needed
+  currentProgress: 175000, // Current amount raised (update from DB in production)
+  
+  // Slider limits (MXN)
+  minAmount: 5000,
+  maxAmount: 500000,
+  defaultAmount: 25000,
+  step: 5000,
+  
+  // Loan terms
+  annualRate: 12, // 12% annual rate
+  termMonths: 48, // 48 month term
+  monthlyCapitalPayment: 15625, // Fixed capital per month ($750k / 48 months)
+};
+
+// ===============================
+// INVESTMENT SIMULATOR CONFIGURATION
+// ===============================
+export const INVESTMENT_CONFIG = {
+  // Round goal and progress
+  roundGoal: 1150000, // $1,150,000 MXN investment needed
+  currentProgress: 84614, // Pre-sale/pre-investment amount
+  
+  // Slider limits (MXN)
+  minAmount: 10000,
+  maxAmount: 500000,
+  defaultAmount: 50000,
+  step: 10000,
+  
+  // Property values
+  propertyValue2026: 6500000, // $6,500,000 MXN estimated value in 2026
+  propertyValue2031: 11375000, // $11,375,000 MXN estimated value in 2031
+  appreciationRate: 0.75, // 75% appreciation over 5 years
+  
+  // Rental income
+  monthlyRentGross: 25000, // $25,000 MXN gross rent
+  monthlyRentNet: 23000, // $23,000 MXN net rent (after admin, maintenance, taxes)
+  
+  // Investment period
+  investmentHorizonYears: 5,
+  
+  // Benefit thresholds (MXN)
+  benefitThresholds: {
+    community: 10000, // Access to exclusive community
+    governance: 50000, // Voice and vote in decisions
+    houseAccess: 100000, // Access to stay at the house
+  },
+};
+
+// ===============================
+// CALCULATION FUNCTIONS
+// ===============================
+
+/**
+ * Calculate loan amortization with decreasing interest
+ * Uses fixed capital payments + monthly interest on remaining balance
+ */
+export function calculateLoanAmortization(loanAmount: number) {
+  const { annualRate, termMonths, roundGoal } = LOAN_CONFIG;
+  const monthlyRate = annualRate / 100 / 12;
+  
+  // Participation percentage
+  const participationPercent = loanAmount / roundGoal;
+  
+  // Fixed capital payment per month (based on user's proportion)
+  const monthlyCapital = loanAmount / termMonths;
+  
+  // Calculate total payments with decreasing interest
+  let totalPayment = 0;
+  let totalInterest = 0;
+  let remainingBalance = loanAmount;
+  const schedule: { month: number; capital: number; interest: number; payment: number; balance: number }[] = [];
+  
+  for (let month = 1; month <= termMonths; month++) {
+    const monthlyInterest = remainingBalance * monthlyRate;
+    const payment = monthlyCapital + monthlyInterest;
+    
+    totalPayment += payment;
+    totalInterest += monthlyInterest;
+    remainingBalance -= monthlyCapital;
+    
+    schedule.push({
+      month,
+      capital: Math.round(monthlyCapital * 100) / 100,
+      interest: Math.round(monthlyInterest * 100) / 100,
+      payment: Math.round(payment * 100) / 100,
+      balance: Math.max(0, Math.round(remainingBalance * 100) / 100),
+    });
+  }
+  
+  // First month payment (highest, for display)
+  const firstMonthPayment = schedule[0]?.payment || 0;
+  // Last month payment (lowest, for display)
+  const lastMonthPayment = schedule[termMonths - 1]?.payment || 0;
+  // Average monthly payment
+  const averagePayment = totalPayment / termMonths;
+  
+  return {
+    loanAmount,
+    participationPercent: participationPercent * 100,
+    monthlyCapital,
+    firstMonthPayment,
+    lastMonthPayment,
+    averagePayment: Math.round(averagePayment * 100) / 100,
+    totalPayment: Math.round(totalPayment * 100) / 100,
+    totalInterest: Math.round(totalInterest * 100) / 100,
+    schedule,
+  };
+}
+
+/**
+ * Calculate investment returns based on participation percentage
+ */
+export function calculateInvestmentReturns(investmentAmount: number) {
+  const { 
+    propertyValue2026, 
+    propertyValue2031, 
+    monthlyRentNet, 
+    investmentHorizonYears,
+    roundGoal,
+  } = INVESTMENT_CONFIG;
+  
+  // Participation percentage based on property value
+  const participationPercent = investmentAmount / propertyValue2026;
+  
+  // Monthly dividend from rent
+  const monthlyDividend = monthlyRentNet * participationPercent;
+  
+  // Annual dividend
+  const annualDividend = monthlyDividend * 12;
+  
+  // Total dividends over investment horizon
+  const totalDividends = annualDividend * investmentHorizonYears;
+  
+  // Capital appreciation at sale (after 5 years)
+  const appreciationValue = propertyValue2031 - propertyValue2026;
+  const saleProfit = appreciationValue * participationPercent;
+  
+  // Total gains (dividends + sale profit)
+  const totalGains = totalDividends + saleProfit;
+  
+  // ROI calculation
+  const roi = (totalGains / investmentAmount) * 100;
+  const roiMonths = investmentAmount / monthlyDividend;
+  
+  // Contribution to round
+  const roundContributionPercent = (investmentAmount / roundGoal) * 100;
+  
+  return {
+    investmentAmount,
+    participationPercent: participationPercent * 100,
+    monthlyDividend: Math.round(monthlyDividend * 100) / 100,
+    annualDividend: Math.round(annualDividend * 100) / 100,
+    totalDividends: Math.round(totalDividends * 100) / 100,
+    saleProfit: Math.round(saleProfit * 100) / 100,
+    totalGains: Math.round(totalGains * 100) / 100,
+    roi: Math.round(roi * 100) / 100,
+    roiMonths: Math.round(roiMonths * 10) / 10,
+    roundContributionPercent: Math.round(roundContributionPercent * 100) / 100,
+  };
+}
+
+/**
+ * Get applicable benefits based on investment amount
+ */
+export function getInvestmentBenefits(amount: number) {
+  const { benefitThresholds } = INVESTMENT_CONFIG;
+  const benefits = [];
+  
+  if (amount >= benefitThresholds.community) {
+    benefits.push({ key: 'community', text: 'Comunidad exclusiva' });
+  }
+  if (amount >= benefitThresholds.governance) {
+    benefits.push({ key: 'governance', text: 'Voz y voto en decisiones' });
+  }
+  if (amount >= benefitThresholds.houseAccess) {
+    benefits.push({ key: 'houseAccess', text: 'Acceso a la casa' });
+  }
+  
+  return benefits;
+}
+
+/**
+ * Format currency with proper locale
+ */
+export function formatMXN(amount: number, decimals = 0): string {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(amount);
+}
+
+export function formatUSD(amount: number, decimals = 0): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(amount);
+}
+
+/**
+ * Convert MXN to USD
+ */
+export function mxnToUsd(amountMXN: number): number {
+  return amountMXN / EXCHANGE_RATE_USD_TO_MXN;
+}
+
+/**
+ * Format amount based on currency selection
+ */
+export function formatByCurrency(amountMXN: number, currency: 'MXN' | 'USD', decimals = 0): string {
+  if (currency === 'USD') {
+    return formatUSD(mxnToUsd(amountMXN), decimals);
+  }
+  return formatMXN(amountMXN, decimals);
+}
