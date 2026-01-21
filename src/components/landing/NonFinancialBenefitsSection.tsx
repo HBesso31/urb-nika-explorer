@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Vote, Home, Users, Leaf } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const benefits = [
   {
@@ -60,20 +61,23 @@ export function NonFinancialBenefitsSection() {
             >
               <Card className="h-full border-0 shadow-soft bg-card hover-lift overflow-hidden">
                 <CardContent className="p-6 lg:p-8">
-                  <div className="flex gap-5">
+                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
                     <div className="shrink-0">
                       <div className="w-14 h-14 rounded-2xl gradient-hero flex items-center justify-center shadow-glow">
                         <benefit.icon className="h-7 w-7 text-primary-foreground" />
                       </div>
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
                         <h3 className="text-xl font-semibold text-foreground">
                           {benefit.title}
                         </h3>
-                        <span className="shrink-0 px-3 py-1 rounded-full bg-accent/20 text-accent text-xs font-medium">
+                        <Badge 
+                          variant="secondary" 
+                          className="w-fit shrink-0 whitespace-nowrap bg-accent/20 text-accent border-0 px-3 py-1"
+                        >
                           {benefit.highlight}
-                        </span>
+                        </Badge>
                       </div>
                       <p className="text-muted-foreground leading-relaxed">
                         {benefit.description}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { galleryImages } from '@/lib/projectAssets';
@@ -7,7 +7,22 @@ import { Button } from '@/components/ui/button';
 export function GallerySection() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  const openLightbox = (index: number) => setSelectedIndex(index);
+  // Create a 3x3 grid by repeating the 3 images
+  const expandedImages = useMemo(() => {
+    const repeated = [];
+    for (let i = 0; i < 3; i++) {
+      galleryImages.forEach((img, idx) => {
+        repeated.push({
+          ...img,
+          id: `${img.id}-${i}`,
+          originalIndex: idx,
+        });
+      });
+    }
+    return repeated;
+  }, []);
+
+  const openLightbox = (originalIndex: number) => setSelectedIndex(originalIndex);
   const closeLightbox = () => setSelectedIndex(null);
 
   const goToPrevious = () => {
@@ -23,7 +38,7 @@ export function GallerySection() {
   const selectedImage = selectedIndex !== null ? galleryImages[selectedIndex] : null;
 
   return (
-    <section id="proyecto" className="py-16 lg:py-24">
+    <section id="galeria" className="py-16 lg:py-24">
       <div className="container">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -42,23 +57,23 @@ export function GallerySection() {
           </p>
         </motion.div>
 
-        {/* Gallery Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {galleryImages.map((image, index) => (
+        {/* Gallery Grid - 3x3 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+          {expandedImages.map((image, index) => (
             <motion.div
               key={image.id}
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
+              transition={{ duration: 0.5, delay: (index % 3) * 0.1 }}
               className="group cursor-pointer"
-              onClick={() => openLightbox(index)}
+              onClick={() => openLightbox(image.originalIndex)}
             >
-              <div className="relative overflow-hidden rounded-xl shadow-soft">
+              <div className="relative overflow-hidden rounded-xl shadow-soft aspect-[4/3]">
                 <img
                   src={image.src}
                   alt={image.alt}
-                  className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-110"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">

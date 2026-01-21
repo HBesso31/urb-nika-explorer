@@ -1,22 +1,15 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { TrendingUp, Wallet, Info, ArrowRight, Loader2 } from 'lucide-react';
+import { TrendingUp, Wallet, Info, ArrowRight, Loader2, ArrowDown, RefreshCw, CheckCircle2, Vote, Home, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Progress } from '@/components/ui/progress';
 import { 
-  Scenario, 
-  simulateInvestmentV2, 
-  simulateLoanV2, 
   formatCurrency, 
-  formatPercentage,
-  getScenarioLabel,
-  investmentRates,
-  loanRates,
 } from '@/lib/simulatorV2';
 import { useAuth } from '@/hooks/useAuth';
 import { useParticipations, CreateParticipationInput } from '@/hooks/useParticipations';
@@ -29,7 +22,14 @@ interface SimulatorPanelV2Props {
 
 const INVESTMENT_LIMITS = { min: 1000, max: 100000, default: 10000 };
 const LOAN_LIMITS = { min: 5000, max: 500000, default: 50000 };
-const TERM_OPTIONS = [12, 24, 36, 48, 60];
+
+// Loan round goal configuration
+const LOAN_ROUND_GOAL = 500000;
+const LOAN_ROUND_CURRENT = 175000; // This would come from DB in production
+
+// Fixed loan configuration (single scenario)
+const LOAN_ANNUAL_RATE = 8; // 8% annual
+const LOAN_TERM_MONTHS = 48; // Fixed 48 months
 
 export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: SimulatorPanelV2Props) {
   const [tab, setTab] = useState<string>(activeTab);
@@ -91,11 +91,32 @@ function InvestmentSimulatorV2() {
   const { createParticipation } = useParticipations();
   
   const [amount, setAmount] = useState(INVESTMENT_LIMITS.default);
-  const [termMonths, setTermMonths] = useState(24);
-  const [scenario, setScenario] = useState<Scenario>('base');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const result = simulateInvestmentV2({ amount, termMonths, scenario });
+  // Calculate estimated ranges (conservative to optimistic)
+  const results = useMemo(() => {
+    const monthlyRentMin = amount * 0.004; // ~4.8% annual (conservative)
+    const monthlyRentMax = amount * 0.008; // ~9.6% annual (optimistic)
+    
+    const longTermGainMin = amount * 0.3; // 30% appreciation (conservative, 5+ years)
+    const longTermGainMax = amount * 0.8; // 80% appreciation (optimistic, 5+ years)
+    
+    return {
+      monthlyRentMin,
+      monthlyRentMax,
+      longTermGainMin,
+      longTermGainMax,
+    };
+  }, [amount]);
+
+  // Determine non-financial benefits based on amount
+  const benefits = useMemo(() => {
+    const list = [];
+    if (amount >= 1000) list.push({ icon: Users, text: 'Comunidad exclusiva' });
+    if (amount >= 5000) list.push({ icon: Vote, text: 'Voz y voto en decisiones' });
+    if (amount >= 10000) list.push({ icon: Home, text: 'Acceso a la casa' });
+    return list;
+  }, [amount]);
 
   const handleDeclareIntent = async () => {
     if (!user) {
@@ -107,8 +128,8 @@ function InvestmentSimulatorV2() {
     const input: CreateParticipationInput = {
       type: 'investment',
       amount,
-      termMonths,
-      scenario,
+      termMonths: 60, // Default long-term
+      scenario: 'base',
     };
 
     const { error } = await createParticipation(input);
@@ -148,75 +169,48 @@ function InvestmentSimulatorV2() {
         </div>
       </div>
 
-      {/* Term */}
-      <div className="space-y-3">
-        <Label>Plazo</Label>
-        <div className="flex gap-2 flex-wrap">
-          {TERM_OPTIONS.map((term) => (
-            <Button
-              key={term}
-              variant={termMonths === term ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setTermMonths(term)}
-              className="flex-1 min-w-[60px]"
-            >
-              {term}m
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Scenario */}
-      <div className="space-y-3">
-        <Label>Escenario</Label>
-        <RadioGroup 
-          value={scenario} 
-          onValueChange={(v) => setScenario(v as Scenario)}
-          className="grid grid-cols-3 gap-2"
-        >
-          {(['conservative', 'base', 'optimistic'] as Scenario[]).map((s) => (
-            <div key={s} className="relative">
-              <RadioGroupItem value={s} id={`inv-${s}`} className="peer sr-only" />
-              <Label
-                htmlFor={`inv-${s}`}
-                className="flex flex-col items-center p-3 rounded-lg border-2 border-muted bg-card cursor-pointer transition-all peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
-              >
-                <span className="text-sm font-medium">{getScenarioLabel(s)}</span>
-                <span className="text-xs text-muted-foreground">
-                  {formatPercentage(investmentRates[s])} anual
-                </span>
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-      </div>
-
-      {/* Results */}
+      {/* Results as ranges */}
       <motion.div
-        key={`${amount}-${termMonths}-${scenario}`}
+        key={amount}
         initial={{ opacity: 0.8, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="p-5 rounded-xl bg-primary/5 border border-primary/20 space-y-3"
+        className="p-5 rounded-xl bg-primary/5 border border-primary/20 space-y-4"
       >
-        <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Capital inicial</span>
-          <span className="font-medium">{formatCurrency(result.initialAmount)}</span>
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Renta mensual estimada</p>
+            <p className="text-lg font-semibold text-foreground">
+              {formatCurrency(results.monthlyRentMin)} – {formatCurrency(results.monthlyRentMax)}
+            </p>
+          </div>
+          
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Ganancia potencial a largo plazo</p>
+            <p className="text-lg font-semibold text-secondary">
+              +{formatCurrency(results.longTermGainMin)} – +{formatCurrency(results.longTermGainMax)}
+            </p>
+          </div>
         </div>
-        <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Ganancia estimada</span>
-          <span className="font-medium text-secondary">+{formatCurrency(result.totalProfit)}</span>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          Rango: {formatCurrency(result.rangeMin)} – {formatCurrency(result.rangeMax)}
-        </div>
-        <div className="h-px bg-border" />
-        <div className="flex justify-between items-center">
-          <span className="font-medium">Total al vencimiento</span>
-          <span className="text-2xl font-display font-bold text-primary">
-            {formatCurrency(result.totalReturn)}
-          </span>
-        </div>
+
+        <p className="text-xs text-muted-foreground border-t border-border/50 pt-3">
+          La decisión de venta se toma colectivamente. No hay fecha fija de salida.
+        </p>
       </motion.div>
+
+      {/* Non-financial benefits */}
+      {benefits.length > 0 && (
+        <div className="p-4 rounded-lg bg-accent/5 border border-accent/20">
+          <p className="text-sm font-medium text-foreground mb-2">Beneficios incluidos:</p>
+          <div className="space-y-2">
+            {benefits.map((benefit, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <benefit.icon className="h-4 w-4 text-accent" />
+                <span>{benefit.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* CTA */}
       <Button 
@@ -248,11 +242,28 @@ function LoanSimulatorV2() {
   const { createParticipation } = useParticipations();
   
   const [amount, setAmount] = useState(LOAN_LIMITS.default);
-  const [termMonths, setTermMonths] = useState(36);
-  const [scenario, setScenario] = useState<Scenario>('base');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const result = simulateLoanV2({ amount, termMonths, scenario });
+  // Calculate real amortization
+  const result = useMemo(() => {
+    const monthlyRate = LOAN_ANNUAL_RATE / 100 / 12;
+    const n = LOAN_TERM_MONTHS;
+    
+    // Monthly payment formula (PMT)
+    const monthlyPayment = amount * (monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1);
+    const totalReceived = monthlyPayment * n;
+    const totalInterest = totalReceived - amount;
+    
+    return {
+      monthlyPayment: Math.round(monthlyPayment * 100) / 100,
+      totalReceived: Math.round(totalReceived * 100) / 100,
+      totalInterest: Math.round(totalInterest * 100) / 100,
+    };
+  }, [amount]);
+
+  // Calculate progress toward loan round goal
+  const progressPercent = Math.min((LOAN_ROUND_CURRENT / LOAN_ROUND_GOAL) * 100, 100);
+  const userContributionPercent = ((amount / LOAN_ROUND_GOAL) * 100).toFixed(1);
 
   const handleDeclareIntent = async () => {
     if (!user) {
@@ -264,8 +275,8 @@ function LoanSimulatorV2() {
     const input: CreateParticipationInput = {
       type: 'loan',
       amount,
-      termMonths,
-      scenario,
+      termMonths: LOAN_TERM_MONTHS,
+      scenario: 'base',
     };
 
     const { error } = await createParticipation(input);
@@ -284,11 +295,25 @@ function LoanSimulatorV2() {
 
   return (
     <div className="space-y-6">
+      {/* Progress toward goal */}
+      <div className="p-4 rounded-lg bg-secondary/5 border border-secondary/20">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-medium text-foreground">Meta de la ronda</span>
+          <span className="text-sm text-muted-foreground">
+            {formatCurrency(LOAN_ROUND_CURRENT)} / {formatCurrency(LOAN_ROUND_GOAL)}
+          </span>
+        </div>
+        <Progress value={progressPercent} className="h-2 mb-2" />
+        <p className="text-xs text-muted-foreground">
+          {progressPercent.toFixed(0)}% completado
+        </p>
+      </div>
+
       {/* Amount */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <Label>Monto del préstamo</Label>
-          <span className="text-lg font-semibold text-primary">
+          <Label>Monto que prestas</Label>
+          <span className="text-lg font-semibold text-secondary">
             {formatCurrency(amount)}
           </span>
         </div>
@@ -305,75 +330,82 @@ function LoanSimulatorV2() {
         </div>
       </div>
 
-      {/* Term */}
-      <div className="space-y-3">
-        <Label>Plazo</Label>
-        <div className="flex gap-2 flex-wrap">
-          {TERM_OPTIONS.map((term) => (
-            <Button
-              key={term}
-              variant={termMonths === term ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setTermMonths(term)}
-              className="flex-1 min-w-[60px]"
-            >
-              {term}m
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Scenario */}
-      <div className="space-y-3">
-        <Label>Escenario</Label>
-        <RadioGroup 
-          value={scenario} 
-          onValueChange={(v) => setScenario(v as Scenario)}
-          className="grid grid-cols-3 gap-2"
-        >
-          {(['conservative', 'base', 'optimistic'] as Scenario[]).map((s) => (
-            <div key={s} className="relative">
-              <RadioGroupItem value={s} id={`loan-${s}`} className="peer sr-only" />
-              <Label
-                htmlFor={`loan-${s}`}
-                className="flex flex-col items-center p-3 rounded-lg border-2 border-muted bg-card cursor-pointer transition-all peer-data-[state=checked]:border-secondary peer-data-[state=checked]:bg-secondary/5"
-              >
-                <span className="text-sm font-medium">{getScenarioLabel(s)}</span>
-                <span className="text-xs text-muted-foreground">
-                  {formatPercentage(loanRates[s])} anual
-                </span>
-              </Label>
+      {/* Visual flow explanation */}
+      <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
+        <p className="text-sm font-medium text-foreground mb-3">¿Cómo funciona el préstamo puente?</p>
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
+              <ArrowDown className="h-3 w-3 text-secondary" />
             </div>
-          ))}
-        </RadioGroup>
+            <div>
+              <p className="text-sm font-medium text-foreground">Tú prestas</p>
+              <p className="text-xs text-muted-foreground">Aportas capital al proyecto</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
+              <RefreshCw className="h-3 w-3 text-secondary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Ronda de inversión</p>
+              <p className="text-xs text-muted-foreground">Se busca liquidez para pagar anticipadamente</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="h-3 w-3 text-secondary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Liquidación</p>
+              <p className="text-xs text-muted-foreground">Anticipada si hay inversión, o en 48 meses</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Results */}
       <motion.div
-        key={`${amount}-${termMonths}-${scenario}`}
+        key={amount}
         initial={{ opacity: 0.8, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         className="p-5 rounded-xl bg-secondary/5 border border-secondary/20 space-y-3"
       >
         <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Monto del préstamo</span>
-          <span className="font-medium">{formatCurrency(result.loanAmount)}</span>
+          <span className="text-muted-foreground">Monto que prestas</span>
+          <span className="font-medium">{formatCurrency(amount)}</span>
         </div>
         <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Intereses totales</span>
-          <span className="font-medium">{formatCurrency(result.totalInterest)}</span>
+          <span className="text-muted-foreground">Tasa anual</span>
+          <span className="font-medium">{LOAN_ANNUAL_RATE}%</span>
         </div>
-        <div className="text-xs text-muted-foreground">
-          Pago mensual: {formatCurrency(result.rangeMin)} – {formatCurrency(result.rangeMax)}
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-muted-foreground">Plazo máximo</span>
+          <span className="font-medium">{LOAN_TERM_MONTHS} meses</span>
         </div>
         <div className="h-px bg-border" />
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-muted-foreground">Pago mensual estimado</span>
+          <span className="font-semibold">{formatCurrency(result.monthlyPayment)}</span>
+        </div>
         <div className="flex justify-between items-center">
-          <span className="font-medium">Pago mensual</span>
-          <span className="text-2xl font-display font-bold text-secondary">
-            {formatCurrency(result.monthlyPayment)}
+          <span className="font-medium">Total estimado que recibes</span>
+          <span className="text-xl font-display font-bold text-secondary">
+            {formatCurrency(result.totalReceived)}
           </span>
         </div>
+        <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">
+          Intereses totales: {formatCurrency(result.totalInterest)} (amortización real, los intereses disminuyen con cada pago)
+        </p>
       </motion.div>
+
+      {/* User contribution message */}
+      <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 text-center">
+        <p className="text-sm text-foreground">
+          ¡Tú aportarías el <span className="font-semibold text-accent">{userContributionPercent}%</span> del monto total!
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">Gracias por hacerlo posible.</p>
+      </div>
 
       {/* CTA */}
       <Button 
