@@ -14,7 +14,105 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      benefits: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          min_investment: number | null
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          is_active?: boolean
+          min_investment?: number | null
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          min_investment?: number | null
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      participations: {
+        Row: {
+          amount: number
+          created_at: string
+          estimated_return: number | null
+          id: string
+          notes: string | null
+          scenario: Database["public"]["Enums"]["scenario_type"]
+          status: Database["public"]["Enums"]["participation_status"]
+          term_months: number
+          type: Database["public"]["Enums"]["participation_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          estimated_return?: number | null
+          id?: string
+          notes?: string | null
+          scenario?: Database["public"]["Enums"]["scenario_type"]
+          status?: Database["public"]["Enums"]["participation_status"]
+          term_months: number
+          type: Database["public"]["Enums"]["participation_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          estimated_return?: number | null
+          id?: string
+          notes?: string | null
+          scenario?: Database["public"]["Enums"]["scenario_type"]
+          status?: Database["public"]["Enums"]["participation_status"]
+          term_months?: number
+          type?: Database["public"]["Enums"]["participation_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +121,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      participation_status: "pending" | "active" | "closed"
+      participation_type: "investment" | "loan"
+      scenario_type: "conservative" | "base" | "optimistic"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +250,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      participation_status: ["pending", "active", "closed"],
+      participation_type: ["investment", "loan"],
+      scenario_type: ["conservative", "base", "optimistic"],
+    },
   },
 } as const
