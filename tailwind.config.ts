@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ['"Playfair Display"', 'serif'],
+        body: ['Inter', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -65,25 +69,47 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "fade-up": {
+          from: { opacity: "0", transform: "translateY(20px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "scale-in": {
+          from: { opacity: "0", transform: "scale(0.95)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
+        "slide-in-right": {
+          from: { opacity: "0", transform: "translateX(20px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-up": "fade-up 0.6s ease-out forwards",
+        "fade-in": "fade-in 0.5s ease-out forwards",
+        "scale-in": "scale-in 0.4s ease-out forwards",
+        "slide-in-right": "slide-in-right 0.5s ease-out forwards",
+        shimmer: "shimmer 2s infinite",
+      },
+      boxShadow: {
+        soft: "0 4px 20px -4px hsl(25 20% 15% / 0.08)",
+        medium: "0 8px 30px -6px hsl(25 20% 15% / 0.12)",
+        strong: "0 16px 50px -12px hsl(25 20% 15% / 0.18)",
+        glow: "0 0 40px -10px hsl(20 70% 45% / 0.25)",
       },
     },
   },
