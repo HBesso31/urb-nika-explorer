@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { TrendingUp, Wallet, Info, ArrowRight, Loader2, ArrowDown, RefreshCw, CheckCircle2, Vote, Home, Users } from 'lucide-react';
@@ -33,6 +33,11 @@ const LOAN_TERM_MONTHS = 48; // Fixed 48 months
 
 export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: SimulatorPanelV2Props) {
   const [tab, setTab] = useState<string>(activeTab);
+
+  // Sync internal state when parent changes activeTab
+  useEffect(() => {
+    setTab(activeTab);
+  }, [activeTab]);
 
   const handleTabChange = (value: string) => {
     setTab(value);

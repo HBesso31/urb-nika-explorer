@@ -62,8 +62,8 @@ const sovereigntyFeatures = [
   },
   {
     icon: Wifi,
-    title: 'Conectividad Starlink',
-    description: 'Internet de alta velocidad sin depender de infraestructura local.'
+    title: 'Internet satelital',
+    description: 'Conectividad de alta velocidad sin depender de infraestructura local.'
   }
 ];
 
