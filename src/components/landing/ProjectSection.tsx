@@ -10,7 +10,7 @@ const projectFeatures = [{
 }, {
   icon: Ruler,
   label: 'Superficie',
-  value: '12,500 m²',
+  value: '289.66 m²',
   subvalue: '8,750 m² construibles'
 }, {
   icon: Home,
