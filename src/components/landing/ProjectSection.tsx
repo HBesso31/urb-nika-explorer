@@ -42,8 +42,7 @@ export function ProjectSection() {
             Casa Acocui
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl">
-            Nuestra primera casa modelo: un espacio donde la tecnología off-grid 
-            se integra con arquitectura bioclimática y diseño regenerativo.
+            Nuestra segunda casa · Corregidora, Querétaro · 289.66 m²
           </p>
         </motion.div>
 
