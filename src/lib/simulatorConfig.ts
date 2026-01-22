@@ -68,44 +68,38 @@ export const INVESTMENT_CONFIG = {
 // ===============================
 
 /**
- * Calculate loan amortization using the Common Fund Model
- * Amortizes the TOTAL FUND ($750,000) and calculates user's proportional payment
- * This matches the Excel model "Simuladores para levantar capital"
+ * Calculate loan amortization using the Linear Decreasing Model
+ * Based on the Excel "Simuladores para levantar capital"
+ * Fund payment decreases linearly from $23,125 (month 1) to $482 (month 48)
  */
 export function calculateLoanAmortization(loanAmount: number) {
-  const { annualRate, termMonths, roundGoal } = LOAN_CONFIG;
-  const monthlyRate = annualRate / 100 / 12; // 1% mensual (12% anual)
+  const { termMonths, roundGoal } = LOAN_CONFIG;
   
   // User's participation percentage in the fund
   const participationPercent = loanAmount / roundGoal;
   
-  // Amortization of the TOTAL FUND ($750,000)
-  const fundCapitalPayment = roundGoal / termMonths; // $15,625 fixed monthly
-  let fundBalance = roundGoal;
+  // Excel model: Linear decreasing fund payments
+  // Month 1: $23,125, Month 48: $482
+  const FIRST_FUND_PAYMENT = 23125;
+  const LAST_FUND_PAYMENT = 482;
+  const monthlyDecrease = (FIRST_FUND_PAYMENT - LAST_FUND_PAYMENT) / (termMonths - 1);
   
   let totalUserPayment = 0;
-  const schedule: { month: number; capital: number; interest: number; payment: number; balance: number }[] = [];
+  const schedule: { month: number; payment: number; fundPayment: number }[] = [];
   
   for (let month = 1; month <= termMonths; month++) {
-    // Interest on FUND balance (not user's individual balance)
-    const fundInterest = fundBalance * monthlyRate;
-    const fundPayment = fundCapitalPayment + fundInterest;
+    // Fund payment decreases linearly each month
+    const fundPayment = FIRST_FUND_PAYMENT - (month - 1) * monthlyDecrease;
     
     // User's payment = their % of the fund's payment
-    const userCapital = fundCapitalPayment * participationPercent;
-    const userInterest = fundInterest * participationPercent;
     const userPayment = fundPayment * participationPercent;
     totalUserPayment += userPayment;
     
     schedule.push({
       month,
-      capital: Math.round(userCapital * 100) / 100,
-      interest: Math.round(userInterest * 100) / 100,
       payment: Math.round(userPayment * 100) / 100,
-      balance: Math.round(fundBalance * participationPercent * 100) / 100,
+      fundPayment: Math.round(fundPayment * 100) / 100,
     });
-    
-    fundBalance -= fundCapitalPayment;
   }
   
   const averagePayment = totalUserPayment / termMonths;
@@ -117,7 +111,6 @@ export function calculateLoanAmortization(loanAmount: number) {
   return {
     loanAmount,
     participationPercent: participationPercent * 100, // As percentage for UI
-    monthlyCapital: Math.round(fundCapitalPayment * participationPercent * 100) / 100,
     firstMonthPayment: schedule[0]?.payment || 0,
     lastMonthPayment: schedule[termMonths - 1]?.payment || 0,
     averagePayment: Math.round(averagePayment * 100) / 100,
