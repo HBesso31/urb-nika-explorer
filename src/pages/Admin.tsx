@@ -366,10 +366,9 @@ const Admin = () => {
                             <TableHead className="text-right">MXN</TableHead>
                             <TableHead className="text-right">USD</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Network</TableHead>
-                            <TableHead>Contrato</TableHead>
                             <TableHead>Tx Hash</TableHead>
                             <TableHead>Fecha</TableHead>
+                            <TableHead>Acciones</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -377,12 +376,14 @@ const Admin = () => {
                             <TableRow key={c.id}>
                               <TableCell>
                                 <div>
-                                  <p className="font-medium">
-                                    {c.user_name || 'Sin nombre'}
+                                  <p className="font-medium text-sm truncate max-w-[180px]">
+                                    {c.user_email || c.wallet_address?.slice(0, 10) + '...' || 'Sin identificador'}
                                   </p>
-                                  <p className="text-xs text-muted-foreground truncate max-w-[120px]">
-                                    {c.user_id.slice(0, 8)}...
-                                  </p>
+                                  {c.wallet_address && c.user_email && (
+                                    <p className="text-xs text-muted-foreground truncate max-w-[180px]">
+                                      {c.wallet_address.slice(0, 10)}...
+                                    </p>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -403,19 +404,9 @@ const Admin = () => {
                               </TableCell>
                               <TableCell>{getStatusBadge(c.status)}</TableCell>
                               <TableCell>
-                                <span className="text-sm text-muted-foreground">
-                                  {c.network || '—'}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <span className="text-xs font-mono text-muted-foreground truncate max-w-[80px] block">
-                                  {c.financial_contract || '—'}
-                                </span>
-                              </TableCell>
-                              <TableCell>
                                 {c.tx_hash ? (
-                                  <span className="text-xs font-mono text-primary truncate max-w-[80px] block">
-                                    {c.tx_hash.slice(0, 10)}...
+                                  <span className="text-xs font-mono text-primary truncate max-w-[100px] block">
+                                    {c.tx_hash.slice(0, 12)}...
                                   </span>
                                 ) : (
                                   <span className="text-muted-foreground">—</span>
@@ -429,6 +420,33 @@ const Admin = () => {
                                     year: 'numeric',
                                   })}
                                 </span>
+                              </TableCell>
+                              <TableCell>
+                                {c.status === 'pending' ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1 text-green-600 border-green-500/30 hover:bg-green-500/10"
+                                    disabled={crm.updatingId === c.id}
+                                    onClick={async () => {
+                                      const { error } = await crm.approveContribution(c.id);
+                                      if (error) {
+                                        toast.error('Error al aprobar', { description: error });
+                                      } else {
+                                        toast.success('Contribución aprobada');
+                                      }
+                                    }}
+                                  >
+                                    {crm.updatingId === c.id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <CheckCircle className="h-3 w-3" />
+                                    )}
+                                    Aprobar
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
                               </TableCell>
                             </TableRow>
                           ))}

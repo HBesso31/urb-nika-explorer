@@ -6,15 +6,12 @@ export interface CRMContribution {
   user_id: string;
   app_user_id: string | null;
   user_email: string | null;
-  user_name: string | null;
   wallet_address: string | null;
   registration_method: 'email' | 'wallet';
   vehicle: string;
   amount_mxn: number;
   amount_usd: number;
   status: string;
-  network: string | null;
-  financial_contract: string | null;
   tx_hash: string | null;
   created_at: string;
 }
@@ -34,6 +31,7 @@ export function useAdminCRM() {
   const [contributions, setContributions] = useState<CRMContribution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   
   // Filters
   const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>('all');
@@ -63,13 +61,6 @@ export function useAdminCRM() {
           .filter(Boolean)
       )];
 
-      // Get unique user_ids (for legacy Supabase auth users)
-      const legacyUserIds = [...new Set(
-        (contributionsData || [])
-          .filter(c => !c.app_user_id)
-          .map(c => c.user_id)
-      )];
-
       // Fetch app_users for Privy users
       let appUsersMap = new Map<string, AppUser>();
       if (appUserIds.length > 0) {
@@ -87,43 +78,22 @@ export function useAdminCRM() {
         }
       }
 
-      // Fetch profiles for legacy users
-      let profilesMap = new Map<string, { full_name: string | null }>();
-      if (legacyUserIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', legacyUserIds);
-
-        if (profilesError) {
-          console.warn('Error fetching profiles:', profilesError);
-        } else {
-          profilesMap = new Map(
-            (profilesData || []).map(p => [p.user_id, p])
-          );
-        }
-      }
-
       // Transform data for CRM view
       const crmData: CRMContribution[] = (contributionsData || []).map(c => {
         // Check if this is a Privy user (has app_user_id)
         const appUser = c.app_user_id ? appUsersMap.get(c.app_user_id) : null;
-        const legacyProfile = !c.app_user_id ? profilesMap.get(c.user_id) : null;
 
         return {
           id: c.id,
           user_id: c.user_id,
           app_user_id: c.app_user_id || null,
           user_email: appUser?.email || null,
-          user_name: legacyProfile?.full_name || null,
           wallet_address: appUser?.wallet_address || null,
           registration_method: appUser?.auth_method || 'email',
           vehicle: c.vehicle,
           amount_mxn: c.amount_mxn,
           amount_usd: c.amount_usd,
           status: c.status,
-          network: c.network,
-          financial_contract: c.financial_contract,
           tx_hash: c.tx_hash,
           created_at: c.created_at,
         };
@@ -135,6 +105,31 @@ export function useAdminCRM() {
       setError(err instanceof Error ? err.message : 'Error al cargar datos CRM');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Approve a contribution (change status to confirmed)
+  const approveContribution = async (id: string): Promise<{ error?: string }> => {
+    setUpdatingId(id);
+    try {
+      const { error: updateError } = await supabase
+        .from('contributions')
+        .update({ status: 'confirmed' })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setContributions(prev => 
+        prev.map(c => c.id === id ? { ...c, status: 'confirmed' } : c)
+      );
+
+      return {};
+    } catch (err) {
+      console.error('Error approving contribution:', err);
+      return { error: err instanceof Error ? err.message : 'Error al aprobar' };
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -173,6 +168,9 @@ export function useAdminCRM() {
     isLoading,
     error,
     refresh: fetchCRMData,
+    // Approve function
+    approveContribution,
+    updatingId,
     // Filters
     vehicleFilter,
     setVehicleFilter,
