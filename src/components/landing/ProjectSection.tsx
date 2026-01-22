@@ -1,7 +1,9 @@
-import { motion } from 'framer-motion';
-import { MapPin, Ruler, Home, TreePine, Sun, Droplets, Leaf, Wifi, Shield, Brain, Heart, Eye, Building2, TrendingUp, MapPinned, Mountain } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MapPin, Ruler, Home, TreePine, Sun, Droplets, Leaf, Wifi, Shield, Brain, Heart, Eye, Building2, TrendingUp, MapPinned, Mountain, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import plan1 from '@/assets/plan-1.jpg';
 import plan2 from '@/assets/plan-2.jpg';
 import plan3 from '@/assets/plan-3.jpg';
@@ -124,7 +126,7 @@ const locationBenefits = [
 // Tab 4 - Proyecto Arquitectónico
 const architecturalSpecs = {
   terreno: '289.66 m²',
-  construccion: '~180 m² (estimado)',
+  construccion: '~180 m²',
   precioPorM2: '$18,000 - $22,000 MXN',
 };
 
@@ -153,6 +155,33 @@ const galleryImages = [
 ];
 
 export function ProjectSection() {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  
+  // Filter images that have a src for lightbox navigation
+  const imagesWithSrc = galleryImages.filter(img => img.src);
+  
+  const openLightbox = (index: number) => {
+    const image = galleryImages[index];
+    if (image.src) {
+      const srcIndex = imagesWithSrc.findIndex(img => img.src === image.src);
+      setLightboxIndex(srcIndex);
+    }
+  };
+  
+  const closeLightbox = () => setLightboxIndex(null);
+  
+  const goToPrevious = () => {
+    if (lightboxIndex !== null) {
+      setLightboxIndex((lightboxIndex - 1 + imagesWithSrc.length) % imagesWithSrc.length);
+    }
+  };
+  
+  const goToNext = () => {
+    if (lightboxIndex !== null) {
+      setLightboxIndex((lightboxIndex + 1) % imagesWithSrc.length);
+    }
+  };
+
   return (
     <section id="proyecto" className="py-16 lg:py-24 bg-muted/30">
       <div className="container">
@@ -381,7 +410,8 @@ export function ProjectSection() {
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.3, delay: index * 0.05 }}
-                        className="aspect-[4/3] rounded-lg overflow-hidden bg-muted relative group"
+                        className={`aspect-[4/3] rounded-lg overflow-hidden bg-muted relative group ${image.src ? 'cursor-pointer' : ''}`}
+                        onClick={() => openLightbox(index)}
                       >
                         {image.src ? (
                           <img 
@@ -439,6 +469,72 @@ export function ProjectSection() {
           </Tabs>
         </motion.div>
       </div>
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightboxIndex !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+            onClick={closeLightbox}
+          >
+            {/* Close button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 text-white hover:bg-white/20"
+              onClick={closeLightbox}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+
+            {/* Navigation */}
+            {imagesWithSrc.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-4 text-white hover:bg-white/20"
+                  onClick={(e) => { e.stopPropagation(); goToPrevious(); }}
+                >
+                  <ChevronLeft className="h-8 w-8" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-4 text-white hover:bg-white/20"
+                  onClick={(e) => { e.stopPropagation(); goToNext(); }}
+                >
+                  <ChevronRight className="h-8 w-8" />
+                </Button>
+              </>
+            )}
+
+            {/* Image */}
+            <motion.div
+              key={lightboxIndex}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="max-w-[90vw] max-h-[85vh] relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={imagesWithSrc[lightboxIndex].src!}
+                alt={imagesWithSrc[lightboxIndex].alt}
+                className="max-w-full max-h-[85vh] object-contain rounded-lg"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-b-lg">
+                <p className="text-white text-center font-medium">
+                  {imagesWithSrc[lightboxIndex].title}
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
