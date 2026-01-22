@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { usePrivy } from '@privy-io/react-auth';
 import { Loader2, Send, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,11 +24,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EXCHANGE_RATE_USD_TO_MXN, formatUSD, mxnToUsd } from '@/lib/simulatorConfig';
 import type { Vehicle, Currency } from './PortalSimulator';
-
 const transactionSchema = z.object({
   vehicle: z.enum(['investment', 'loan'], {
     required_error: 'Selecciona un vehículo',
@@ -59,6 +58,7 @@ export function TransactionForm({
   onSuccess,
 }: TransactionFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { getAccessToken } = usePrivy();
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
@@ -88,46 +88,72 @@ export function TransactionForm({
 
     setIsSubmitting(true);
 
-    // TODO: On-chain verification will be added here by dev
-    // For now, all transactions are saved as 'pending'
-    // The admin or an automated process will update to 'confirmed' after verification
+    try {
+      // Get Privy access token for authentication
+      const accessToken = await getAccessToken();
+      
+      if (!accessToken) {
+        toast.error('Error de autenticación', { 
+          description: 'No se pudo obtener el token de acceso' 
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
-    const { error } = await supabase.from('contributions').insert({
-      app_user_id: appUserId,
-      user_id: appUserId, // Using app_user_id as user_id for now
-      vehicle: data.vehicle,
-      amount_mxn: data.amountMXN,
-      amount_usd: mxnToUsd(data.amountMXN),
-      network: data.network || null,
-      financial_contract: data.financialContract || null,
-      tx_hash: data.txHash,
-      status: 'pending',
-    });
+      // Call edge function to create contribution (bypasses RLS)
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-contribution`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            appUserId,
+            vehicle: data.vehicle,
+            amountMxn: data.amountMXN,
+            amountUsd: mxnToUsd(data.amountMXN),
+            network: data.network || null,
+            financialContract: data.financialContract || null,
+            txHash: data.txHash,
+          }),
+        }
+      );
 
-    setIsSubmitting(false);
+      const result = await response.json();
 
-    if (error) {
-      console.error('Error saving contribution:', error);
-      toast.error('Error al registrar transacción', { 
-        description: error.message 
+      if (!response.ok) {
+        console.error('Error saving contribution:', result);
+        toast.error('Error al registrar transacción', { 
+          description: result.error || 'Error desconocido' 
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast.success('Transacción registrada (pendiente)', {
+        description: 'Tu transacción será verificada pronto.',
       });
-      return;
+
+      // Reset form
+      form.reset({
+        vehicle: defaultVehicle,
+        amountMXN: defaultAmountMXN,
+        network: '',
+        financialContract: '',
+        txHash: '',
+      });
+
+      onSuccess?.();
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast.error('Error inesperado', { 
+        description: 'Por favor intenta de nuevo' 
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    toast.success('Transacción registrada (pendiente)', {
-      description: 'Tu transacción será verificada pronto.',
-    });
-
-    // Reset form
-    form.reset({
-      vehicle: defaultVehicle,
-      amountMXN: defaultAmountMXN,
-      network: '',
-      financialContract: '',
-      txHash: '',
-    });
-
-    onSuccess?.();
   };
 
   const networkWarning = !form.watch('network');
