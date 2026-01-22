@@ -38,7 +38,7 @@ export function HeroSection({ onSimulateInvestment, onSimulateLoan }: HeroSectio
               transition={{ delay: 0.2 }}
             >
               <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-              <span className="text-sm font-medium text-primary-foreground">Inversión Regenerativa</span>
+              <span className="text-sm font-medium text-primary-foreground">Inversión Regenerativa: abierta a registro</span>
             </motion.div>
             
             {/* Title */}
