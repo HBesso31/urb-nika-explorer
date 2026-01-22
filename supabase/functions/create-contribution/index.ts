@@ -16,6 +16,31 @@ interface ContributionRequest {
   txHash: string;
 }
 
+function decodeBase64Url(input: string): string {
+  // base64url -> base64
+  const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
+  // Pad to multiple of 4
+  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+  const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function getPrivyAppIdFromToken(token: string): string | null {
+  // JWT: header.payload.signature
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+
+  try {
+    const payloadJson = decodeBase64Url(parts[1]);
+    const payload = JSON.parse(payloadJson);
+    const aud = payload?.aud;
+    if (typeof aud === "string" && aud.length > 0) return aud;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -41,8 +66,18 @@ serve(async (req) => {
     const privyToken = authHeader.replace("Bearer ", "");
 
     // Verify Privy token
-    const privyAppId = Deno.env.get("VITE_PRIVY_APP_ID") || "cm9w0ngtc00hwgx7i25w31lp7";
+    // IMPORTANT: do NOT use VITE_* vars inside edge functions.
+    // We derive the Privy app id from the token's `aud` claim.
+    const privyAppId = getPrivyAppIdFromToken(privyToken);
     const privyAppSecret = Deno.env.get("PRIVY_APP_SECRET");
+
+    if (!privyAppId) {
+      console.error("Could not derive Privy app id from token (missing aud)");
+      return new Response(
+        JSON.stringify({ error: "Invalid authentication token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!privyAppSecret) {
       console.error("PRIVY_APP_SECRET not configured");
@@ -64,7 +99,8 @@ serve(async (req) => {
     });
 
     if (!verifyResponse.ok) {
-      console.error("Privy token verification failed:", await verifyResponse.text());
+      const bodyText = await verifyResponse.text();
+      console.error("Privy token verification failed:", bodyText || "<empty response body>");
       return new Response(
         JSON.stringify({ error: "Invalid authentication token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }

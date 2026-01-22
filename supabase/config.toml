@@ -2,3 +2,6 @@ project_id = "hilklzcuygzjoezelpii"
 
 [functions.privy-sync-user]
 verify_jwt = false
+
+[functions.create-contribution]
+verify_jwt = false
