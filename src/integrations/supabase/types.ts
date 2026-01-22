@@ -49,6 +49,7 @@ export type Database = {
           amount_mxn: number
           amount_usd: number
           created_at: string
+          financial_contract: string | null
           id: string
           network: string | null
           status: string
@@ -61,6 +62,7 @@ export type Database = {
           amount_mxn: number
           amount_usd: number
           created_at?: string
+          financial_contract?: string | null
           id?: string
           network?: string | null
           status?: string
@@ -73,6 +75,7 @@ export type Database = {
           amount_mxn?: number
           amount_usd?: number
           created_at?: string
+          financial_contract?: string | null
           id?: string
           network?: string | null
           status?: string
@@ -187,6 +190,7 @@ export type Database = {
       }
       site_settings: {
         Row: {
+          deposit_address: string
           humberto_contact_email: string
           humberto_contact_whatsapp: string
           id: string
@@ -196,6 +200,7 @@ export type Database = {
           urbanika_contact_whatsapp: string
         }
         Insert: {
+          deposit_address?: string
           humberto_contact_email?: string
           humberto_contact_whatsapp?: string
           id?: string
@@ -205,6 +210,7 @@ export type Database = {
           urbanika_contact_whatsapp?: string
         }
         Update: {
+          deposit_address?: string
           humberto_contact_email?: string
           humberto_contact_whatsapp?: string
           id?: string

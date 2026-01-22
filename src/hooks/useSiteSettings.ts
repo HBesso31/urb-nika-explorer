@@ -8,6 +8,7 @@ export interface SiteSettings {
   humberto_contact_email: string;
   humberto_contact_whatsapp: string;
   terms_url: string;
+  deposit_address: string;
   updated_at: string;
 }
 
@@ -17,6 +18,7 @@ const DEFAULT_SETTINGS: Omit<SiteSettings, 'id' | 'updated_at'> = {
   humberto_contact_email: 'humberto@urbanika.mx',
   humberto_contact_whatsapp: '+52 55 8765 4321',
   terms_url: '/terminos-y-condiciones.pdf',
+  deposit_address: 'urbanika.eth',
 };
 
 export function useSiteSettings() {
