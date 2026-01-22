@@ -73,52 +73,49 @@ export const INVESTMENT_CONFIG = {
  */
 export function calculateLoanAmortization(loanAmount: number) {
   const { annualRate, termMonths, roundGoal } = LOAN_CONFIG;
-  const monthlyRate = annualRate / 100 / 12;
+  const monthlyRate = annualRate / 100 / 12; // 1% mensual
   
-  // Participation percentage
+  // Participación del usuario en el fondo
   const participationPercent = loanAmount / roundGoal;
   
-  // Fixed capital payment per month (based on user's proportion)
-  const monthlyCapital = loanAmount / termMonths;
+  // Amortización del FONDO TOTAL ($750,000)
+  const fundCapitalPayment = roundGoal / termMonths; // $15,625 fijo
+  let fundBalance = roundGoal;
   
-  // Calculate total payments with decreasing interest
-  let totalPayment = 0;
-  let totalInterest = 0;
-  let remainingBalance = loanAmount;
+  let totalUserPayment = 0;
   const schedule: { month: number; capital: number; interest: number; payment: number; balance: number }[] = [];
   
   for (let month = 1; month <= termMonths; month++) {
-    const monthlyInterest = remainingBalance * monthlyRate;
-    const payment = monthlyCapital + monthlyInterest;
+    // Interés sobre balance del FONDO (no del usuario)
+    const fundInterest = fundBalance * monthlyRate;
+    const fundPayment = fundCapitalPayment + fundInterest;
     
-    totalPayment += payment;
-    totalInterest += monthlyInterest;
-    remainingBalance -= monthlyCapital;
+    // Pago del usuario = su % del pago del fondo
+    const userPayment = fundPayment * participationPercent;
+    totalUserPayment += userPayment;
     
     schedule.push({
       month,
-      capital: Math.round(monthlyCapital * 100) / 100,
-      interest: Math.round(monthlyInterest * 100) / 100,
-      payment: Math.round(payment * 100) / 100,
-      balance: Math.max(0, Math.round(remainingBalance * 100) / 100),
+      capital: Math.round(fundCapitalPayment * participationPercent * 100) / 100,
+      interest: Math.round(fundInterest * participationPercent * 100) / 100,
+      payment: Math.round(userPayment * 100) / 100,
+      balance: Math.round(fundBalance * participationPercent * 100) / 100,
     });
+    
+    fundBalance -= fundCapitalPayment;
   }
   
-  // First month payment (highest, for display)
-  const firstMonthPayment = schedule[0]?.payment || 0;
-  // Last month payment (lowest, for display)
-  const lastMonthPayment = schedule[termMonths - 1]?.payment || 0;
-  // Average monthly payment
-  const averagePayment = totalPayment / termMonths;
+  const averagePayment = totalUserPayment / termMonths;
+  const totalInterest = totalUserPayment - loanAmount;
   
   return {
     loanAmount,
     participationPercent: participationPercent * 100,
-    monthlyCapital,
-    firstMonthPayment,
-    lastMonthPayment,
+    monthlyCapital: fundCapitalPayment * participationPercent,
+    firstMonthPayment: schedule[0]?.payment || 0,
+    lastMonthPayment: schedule[termMonths - 1]?.payment || 0,
     averagePayment: Math.round(averagePayment * 100) / 100,
-    totalPayment: Math.round(totalPayment * 100) / 100,
+    totalPayment: Math.round(totalUserPayment * 100) / 100,
     totalInterest: Math.round(totalInterest * 100) / 100,
     schedule,
   };
