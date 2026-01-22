@@ -36,17 +36,18 @@ export function useSiteSettings() {
       .from('site_settings')
       .select('*')
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (fetchError) {
-      // If no settings exist, use defaults
-      console.warn('No site settings found, using defaults:', fetchError.message);
+      console.warn('Error fetching site settings:', fetchError.message);
+      setError(fetchError.message);
       setSettings(null);
       setIsLoading(false);
       return;
     }
 
-    setSettings(data as unknown as SiteSettings);
+    // data can be null if no rows exist
+    setSettings(data as SiteSettings | null);
     setIsLoading(false);
   };
 
