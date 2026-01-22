@@ -11,8 +11,6 @@ import {
   CheckCircle,
   Mail,
   Phone,
-  FileText,
-  ExternalLink,
   Calendar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/hooks/useAuth';
+import { usePrivyAuth } from '@/hooks/usePrivyAuth';
 import { useContributions } from '@/hooks/useContributions';
 import { usePayouts } from '@/hooks/usePayouts';
 import { useUserBenefits } from '@/hooks/useUserBenefits';
@@ -35,10 +33,14 @@ import { UserTransactions } from '@/components/portal/UserTransactions';
 
 const Portal = () => {
   const navigate = useNavigate();
-  const { user, isLoading: authLoading, signOut } = useAuth();
-  const { contributions, isLoading: contributionsLoading, totalContributedMXN, totalContributedUSD, refresh: refreshContributions } = useContributions();
-  const { payouts, isLoading: payoutsLoading, totalReceivedMXN, totalReceivedUSD } = usePayouts();
-  const { userBenefits, unlockedBenefits, lockedBenefits, isLoading: benefitsLoading } = useUserBenefits();
+  const { isAuthenticated, isLoading: authLoading, appUser, logout, email, walletAddress } = usePrivyAuth();
+  
+  // Use app_user_id for data fetching
+  const appUserId = appUser?.id;
+  
+  const { contributions, isLoading: contributionsLoading, totalContributedMXN, totalContributedUSD, refresh: refreshContributions } = useContributions(appUserId);
+  const { payouts, isLoading: payoutsLoading, totalReceivedMXN, totalReceivedUSD } = usePayouts(appUserId);
+  const { userBenefits, unlockedBenefits, lockedBenefits, isLoading: benefitsLoading } = useUserBenefits(appUserId);
   const { settings, isLoading: settingsLoading } = useSiteSettings();
 
   // Simulator values for form pre-fill
@@ -50,13 +52,13 @@ const Portal = () => {
   });
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !isAuthenticated) {
       navigate('/auth');
     }
-  }, [user, authLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate]);
 
   const handleSignOut = async () => {
-    await signOut();
+    await logout();
     navigate('/');
   };
 
@@ -76,25 +78,14 @@ const Portal = () => {
     );
   }
 
-  if (!user) return null;
+  if (!isAuthenticated || !appUser) return null;
 
   const isLoading = contributionsLoading || payoutsLoading || benefitsLoading || settingsLoading;
 
-  // Get vehicle name for display
-  const getVehicleName = (vehicle: string) => {
-    return vehicle === 'investment' ? 'Inversión' : 'Préstamo';
-  };
-
-  // Get status display
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; className: string }> = {
-      pending: { label: 'Pendiente', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-      confirmed: { label: 'Confirmado', className: 'bg-secondary/10 text-secondary border-secondary/20' },
-      failed: { label: 'Fallido', className: 'bg-destructive/10 text-destructive border-destructive/20' },
-    };
-    const config = statusConfig[status] || statusConfig.pending;
-    return <Badge className={config.className}>{config.label}</Badge>;
-  };
+  // Display identifier: wallet if available, otherwise email
+  const displayIdentifier = walletAddress 
+    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+    : email || 'Usuario';
 
   // Format unlock date
   const formatUnlockDate = (date: string | null) => {
@@ -116,9 +107,14 @@ const Portal = () => {
           </Link>
 
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground hidden sm:inline">
-              {user.email}
-            </span>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {walletAddress ? (
+                <Wallet className="h-4 w-4" />
+              ) : (
+                <Mail className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">{displayIdentifier}</span>
+            </div>
             <Button variant="ghost" size="sm" className="gap-2" onClick={handleSignOut}>
               <LogOut className="h-4 w-4" />
               <span className="hidden sm:inline">Salir</span>
@@ -167,6 +163,7 @@ const Portal = () => {
                 defaultVehicle={simulatorValues.vehicle}
                 defaultAmountMXN={simulatorValues.amountMXN}
                 defaultCurrency={simulatorValues.currency}
+                appUserId={appUserId}
                 onSuccess={handleTransactionSuccess}
               />
             </motion.div>
@@ -400,37 +397,6 @@ const Portal = () => {
                         </div>
                       </div>
                     </>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Documents */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Card className="shadow-soft">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Documentos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {settingsLoading ? (
-                    <Skeleton className="h-12 w-full" />
-                  ) : (
-                    <a 
-                      href={settings.terms_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                    >
-                      <span className="text-sm font-medium">Términos y Condiciones</span>
-                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                    </a>
                   )}
                 </CardContent>
               </Card>

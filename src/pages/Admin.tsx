@@ -21,8 +21,8 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useUserRole } from '@/hooks/useUserRole';
+import { usePrivyAuth } from '@/hooks/usePrivyAuth';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -37,8 +37,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 
 const Admin = () => {
-  const { user, isLoading: authLoading } = useAuth();
-  const { isAdmin, isLoading: roleLoading } = useUserRole();
+  const { isAuthenticated, isLoading: authLoading, isAdmin, appUser, logout } = usePrivyAuth();
   const { settings, rawSettings, isLoading, updateSettings } = useSiteSettings();
   const crm = useAdminCRM();
   const [isSaving, setIsSaving] = useState(false);
@@ -68,7 +67,7 @@ const Admin = () => {
   }
 
   // Auth & role loading state
-  if (authLoading || roleLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <div className="flex flex-col items-center gap-4">
@@ -80,7 +79,7 @@ const Admin = () => {
   }
 
   // Redirect if not authenticated
-  if (!user) {
+  if (!isAuthenticated || !appUser) {
     return <Navigate to="/auth" replace />;
   }
 
