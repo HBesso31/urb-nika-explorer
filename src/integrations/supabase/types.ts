@@ -44,6 +44,45 @@ export type Database = {
         }
         Relationships: []
       }
+      contributions: {
+        Row: {
+          amount_mxn: number
+          amount_usd: number
+          created_at: string
+          id: string
+          network: string | null
+          status: string
+          tx_hash: string | null
+          updated_at: string
+          user_id: string
+          vehicle: string
+        }
+        Insert: {
+          amount_mxn: number
+          amount_usd: number
+          created_at?: string
+          id?: string
+          network?: string | null
+          status?: string
+          tx_hash?: string | null
+          updated_at?: string
+          user_id: string
+          vehicle: string
+        }
+        Update: {
+          amount_mxn?: number
+          amount_usd?: number
+          created_at?: string
+          id?: string
+          network?: string | null
+          status?: string
+          tx_hash?: string | null
+          updated_at?: string
+          user_id?: string
+          vehicle?: string
+        }
+        Relationships: []
+      }
       participations: {
         Row: {
           amount: number
@@ -86,6 +125,39 @@ export type Database = {
         }
         Relationships: []
       }
+      payouts: {
+        Row: {
+          amount_mxn: number
+          amount_usd: number
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string
+          user_id: string
+          vehicle: string
+        }
+        Insert: {
+          amount_mxn: number
+          amount_usd: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          user_id: string
+          vehicle: string
+        }
+        Update: {
+          amount_mxn?: number
+          amount_usd?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          user_id?: string
+          vehicle?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -109,6 +181,66 @@ export type Database = {
           id?: string
           phone?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          humberto_contact_email: string
+          humberto_contact_whatsapp: string
+          id: string
+          terms_url: string
+          updated_at: string
+          urbanika_contact_email: string
+          urbanika_contact_whatsapp: string
+        }
+        Insert: {
+          humberto_contact_email?: string
+          humberto_contact_whatsapp?: string
+          id?: string
+          terms_url?: string
+          updated_at?: string
+          urbanika_contact_email?: string
+          urbanika_contact_whatsapp?: string
+        }
+        Update: {
+          humberto_contact_email?: string
+          humberto_contact_whatsapp?: string
+          id?: string
+          terms_url?: string
+          updated_at?: string
+          urbanika_contact_email?: string
+          urbanika_contact_whatsapp?: string
+        }
+        Relationships: []
+      }
+      user_benefits: {
+        Row: {
+          benefit_name: string
+          created_at: string
+          id: string
+          notes: string | null
+          status: string
+          unlocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          benefit_name: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          unlocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          benefit_name?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          unlocked_at?: string | null
           user_id?: string
         }
         Relationships: []

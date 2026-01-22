@@ -2,35 +2,38 @@ import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Wallet, 
-  TrendingUp, 
   LogOut, 
-  AlertCircle, 
-  CheckCircle, 
   Loader2,
-  Calendar,
-  DollarSign,
-  Clock,
+  TrendingUp,
+  Wallet,
   Gift,
   Lock,
-  ArrowRight,
+  CheckCircle,
+  Mail,
+  Phone,
+  FileText,
+  ExternalLink,
+  Calendar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useWallet } from '@/hooks/useWallet';
-import { useAuth } from '@/hooks/useAuth';
-import { useParticipations } from '@/hooks/useParticipations';
-import { useBenefits } from '@/hooks/useBenefits';
-import { formatCurrency, getScenarioLabel } from '@/lib/simulatorV2';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/hooks/useAuth';
+import { useContributions } from '@/hooks/useContributions';
+import { usePayouts } from '@/hooks/usePayouts';
+import { useUserBenefits } from '@/hooks/useUserBenefits';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { formatMXN, formatUSD } from '@/lib/simulatorConfig';
 
 const Portal = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, signOut } = useAuth();
-  const { state, formattedAddress, connect, disconnect, isConnected, isConnecting, error: walletError } = useWallet();
-  const { participations, isLoading: participationsLoading, totalInvested } = useParticipations();
-  const { benefits, getUnlockedBenefits, getLockedBenefits, isLoading: benefitsLoading } = useBenefits();
+  const { contributions, isLoading: contributionsLoading, totalContributedMXN, totalContributedUSD } = useContributions();
+  const { payouts, isLoading: payoutsLoading, totalReceivedMXN, totalReceivedUSD } = usePayouts();
+  const { userBenefits, unlockedBenefits, lockedBenefits, isLoading: benefitsLoading } = useUserBenefits();
+  const { settings, isLoading: settingsLoading } = useSiteSettings();
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -53,8 +56,30 @@ const Portal = () => {
 
   if (!user) return null;
 
-  const unlockedBenefits = getUnlockedBenefits(totalInvested);
-  const lockedBenefits = getLockedBenefits(totalInvested);
+  const isLoading = contributionsLoading || payoutsLoading || benefitsLoading || settingsLoading;
+
+  // Get vehicle name for display
+  const getVehicleName = (vehicle: string) => {
+    return vehicle === 'investment' ? 'Inversión' : 'Préstamo';
+  };
+
+  // Get status display
+  const getStatusBadge = (status: string) => {
+    const statusConfig: Record<string, { label: string; className: string }> = {
+      pending: { label: 'Pendiente', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+      confirmed: { label: 'Confirmado', className: 'bg-secondary/10 text-secondary border-secondary/20' },
+      failed: { label: 'Fallido', className: 'bg-destructive/10 text-destructive border-destructive/20' },
+    };
+    const config = statusConfig[status] || statusConfig.pending;
+    return <Badge className={config.className}>{config.label}</Badge>;
+  };
+
+  // Format unlock date
+  const formatUnlockDate = (date: string | null) => {
+    if (!date) return null;
+    const d = new Date(date);
+    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+  };
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -89,14 +114,14 @@ const Portal = () => {
             Tu Portal
           </h1>
           <p className="text-muted-foreground mb-8">
-            Gestiona tus participaciones y beneficios en Urbánika
+            Gestiona tu participación y beneficios en Urbánika
           </p>
         </motion.div>
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main column */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Participations */}
+            {/* A) Resumen de participación */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -106,41 +131,124 @@ const Portal = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-primary" />
-                    Mis Participaciones
+                    Resumen de Participación
                   </CardTitle>
                   <CardDescription>
-                    Intenciones declaradas de inversión y préstamo
+                    Tu aporte y lo que has recibido
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {participationsLoading ? (
+                  {isLoading ? (
                     <div className="space-y-4">
                       <Skeleton className="h-24 w-full" />
                       <Skeleton className="h-24 w-full" />
                     </div>
-                  ) : participations.length === 0 ? (
+                  ) : contributions.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-sm mb-4">Aún no has declarado ninguna intención</p>
+                      <p className="text-sm mb-4">Aún no tienes aportes registrados</p>
                       <Link to="/">
                         <Button variant="outline" size="sm" className="gap-2">
                           Explorar simulador
-                          <ArrowRight className="h-4 w-4" />
                         </Button>
                       </Link>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {participations.map((p) => (
-                        <ParticipationCard key={p.id} participation={p} />
+                    <div className="space-y-6">
+                      {/* Contributions list */}
+                      {contributions.map((contribution) => (
+                        <div 
+                          key={contribution.id}
+                          className="p-4 rounded-xl bg-card border border-border/50"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              {contribution.vehicle === 'investment' ? (
+                                <TrendingUp className="h-5 w-5 text-primary" />
+                              ) : (
+                                <Wallet className="h-5 w-5 text-secondary" />
+                              )}
+                              <span className="font-semibold">
+                                {getVehicleName(contribution.vehicle)}
+                              </span>
+                            </div>
+                            {getStatusBadge(contribution.status)}
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Monto aportado</p>
+                              <p className="font-semibold text-lg">{formatMXN(Number(contribution.amount_mxn))}</p>
+                              <p className="text-sm text-muted-foreground">{formatUSD(Number(contribution.amount_usd))}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Fecha</p>
+                              <p className="font-medium">
+                                {new Date(contribution.created_at).toLocaleDateString('es-MX', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       ))}
+
+                      {/* Totals summary */}
+                      <Separator />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
+                          <p className="text-sm text-muted-foreground mb-1">Total Aportado</p>
+                          <p className="text-2xl font-bold text-primary">{formatMXN(totalContributedMXN)}</p>
+                          <p className="text-sm text-muted-foreground">{formatUSD(totalContributedUSD)}</p>
+                        </div>
+                        <div className="p-4 rounded-lg bg-secondary/5 border border-secondary/10">
+                          <p className="text-sm text-muted-foreground mb-1">Total Recibido</p>
+                          <p className="text-2xl font-bold text-secondary">{formatMXN(totalReceivedMXN)}</p>
+                          <p className="text-sm text-muted-foreground">{formatUSD(totalReceivedUSD)}</p>
+                        </div>
+                      </div>
+
+                      {/* Payouts history */}
+                      {payouts.length > 0 && (
+                        <>
+                          <Separator />
+                          <div>
+                            <p className="text-sm font-medium mb-3">Historial de pagos recibidos</p>
+                            <div className="space-y-2">
+                              {payouts.map((payout) => (
+                                <div 
+                                  key={payout.id}
+                                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm">
+                                      {new Date(payout.paid_at).toLocaleDateString('es-MX', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        year: 'numeric',
+                                      })}
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-medium">{formatMXN(Number(payout.amount_mxn))}</p>
+                                    <p className="text-xs text-muted-foreground">{formatUSD(Number(payout.amount_usd))}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </CardContent>
               </Card>
             </motion.div>
 
-            {/* Benefits */}
+            {/* B) Beneficios del usuario */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -150,53 +258,66 @@ const Portal = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Gift className="h-5 w-5 text-accent" />
-                    Beneficios
+                    Tus Beneficios
                   </CardTitle>
                   <CardDescription>
-                    Beneficios desbloqueados según tu nivel de participación
+                    Beneficios asignados a tu participación
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {benefitsLoading ? (
                     <Skeleton className="h-32 w-full" />
+                  ) : userBenefits.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Gift className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-sm">Aún no tienes beneficios asignados</p>
+                    </div>
                   ) : (
                     <div className="space-y-4">
+                      {/* Unlocked benefits */}
                       {unlockedBenefits.length > 0 && (
                         <div className="space-y-3">
                           <p className="text-sm font-medium text-secondary flex items-center gap-2">
                             <CheckCircle className="h-4 w-4" />
                             Desbloqueados
                           </p>
-                          {unlockedBenefits.map((b) => (
+                          {unlockedBenefits.map((benefit) => (
                             <div 
-                              key={b.id} 
+                              key={benefit.id} 
                               className="p-4 rounded-lg bg-secondary/5 border border-secondary/20"
                             >
-                              <p className="font-medium text-foreground">{b.title}</p>
-                              <p className="text-sm text-muted-foreground">{b.description}</p>
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium text-foreground">{benefit.benefit_name}</p>
+                                {benefit.unlocked_at && (
+                                  <span className="text-xs text-muted-foreground">
+                                    Desbloqueado el {formatUnlockDate(benefit.unlocked_at)}
+                                  </span>
+                                )}
+                              </div>
+                              {benefit.notes && (
+                                <p className="text-sm text-muted-foreground mt-1">{benefit.notes}</p>
+                              )}
                             </div>
                           ))}
                         </div>
                       )}
 
+                      {/* Locked benefits */}
                       {lockedBenefits.length > 0 && (
                         <div className="space-y-3">
                           <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                             <Lock className="h-4 w-4" />
                             Por desbloquear
                           </p>
-                          {lockedBenefits.map((b) => (
+                          {lockedBenefits.map((benefit) => (
                             <div 
-                              key={b.id} 
+                              key={benefit.id} 
                               className="p-4 rounded-lg bg-muted/50 border border-border opacity-60"
                             >
-                              <div className="flex items-center justify-between">
-                                <p className="font-medium text-foreground">{b.title}</p>
-                                <Badge variant="outline">
-                                  {formatCurrency(Number(b.min_investment))}+
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground">{b.description}</p>
+                              <p className="font-medium text-foreground">{benefit.benefit_name}</p>
+                              {benefit.notes && (
+                                <p className="text-sm text-muted-foreground mt-1">{benefit.notes}</p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -210,95 +331,99 @@ const Portal = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Summary */}
+            {/* C) Contacto */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
             >
-              <Card className="gradient-card shadow-soft">
-                <CardContent className="p-6">
-                  <p className="text-sm text-muted-foreground mb-2">Total declarado</p>
-                  <p className="text-3xl font-display font-bold text-primary">
-                    {formatCurrency(totalInvested)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    en {participations.length} participación(es)
-                  </p>
+              <Card className="shadow-soft">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Contacto</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {settingsLoading ? (
+                    <Skeleton className="h-24 w-full" />
+                  ) : (
+                    <>
+                      {/* Contacto Urbánika */}
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-sm font-medium mb-2">Contacto Urbánika</p>
+                        <div className="space-y-2">
+                          <a 
+                            href={`mailto:${settings.urbanika_contact_email}`}
+                            className="flex items-center gap-2 text-sm text-primary hover:underline"
+                          >
+                            <Mail className="h-4 w-4" />
+                            {settings.urbanika_contact_email}
+                          </a>
+                          <a 
+                            href={`https://wa.me/${settings.urbanika_contact_whatsapp.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-primary hover:underline"
+                          >
+                            <Phone className="h-4 w-4" />
+                            {settings.urbanika_contact_whatsapp}
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Contacto Humberto */}
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-sm font-medium mb-2">Contacto Humberto</p>
+                        <div className="space-y-2">
+                          <a 
+                            href={`mailto:${settings.humberto_contact_email}`}
+                            className="flex items-center gap-2 text-sm text-primary hover:underline"
+                          >
+                            <Mail className="h-4 w-4" />
+                            {settings.humberto_contact_email}
+                          </a>
+                          <a 
+                            href={`https://wa.me/${settings.humberto_contact_whatsapp.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-primary hover:underline"
+                          >
+                            <Phone className="h-4 w-4" />
+                            {settings.humberto_contact_whatsapp}
+                          </a>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
 
-            {/* Wallet Connection */}
+            {/* D) Términos y condiciones */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
+              transition={{ delay: 0.2 }}
             >
-              <Card className="border-2 border-primary/20 shadow-soft">
+              <Card className="shadow-soft">
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Wallet className="h-5 w-5 text-primary" />
-                    Conectar Wallet
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Documentos
                   </CardTitle>
-                  <CardDescription className="text-xs">
-                    Próximamente: vincula tu billetera para transacciones en criptodólares
-                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-3 rounded-lg bg-muted/50">
-                    {state === 'idle' && (
-                      <div className="flex items-center gap-3 text-muted-foreground">
-                        <div className="w-3 h-3 rounded-full bg-muted-foreground/50" />
-                        <span className="text-sm">No conectado</span>
-                      </div>
-                    )}
-                    {state === 'connecting' && (
-                      <div className="flex items-center gap-3 text-primary">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">Conectando...</span>
-                      </div>
-                    )}
-                    {state === 'connected' && (
-                      <div className="flex items-center gap-3 text-secondary">
-                        <CheckCircle className="h-4 w-4" />
-                        <div>
-                          <span className="text-sm font-medium">Conectado</span>
-                          <p className="text-xs text-muted-foreground font-mono">
-                            {formattedAddress}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {state === 'error' && (
-                      <div className="flex items-center gap-3 text-destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <span className="text-sm">{walletError || 'Error'}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {isConnected ? (
-                    <Button variant="outline" onClick={disconnect} className="w-full" size="sm">
-                      Desconectar
-                    </Button>
+                <CardContent>
+                  {settingsLoading ? (
+                    <Skeleton className="h-12 w-full" />
                   ) : (
-                    <Button 
-                      variant="outline" 
-                      onClick={connect} 
-                      className="w-full"
-                      size="sm"
-                      disabled
+                    <a 
+                      href={settings.terms_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                     >
-                      <Wallet className="mr-2 h-4 w-4" />
-                      Próximamente
-                    </Button>
+                      <span className="text-sm font-medium">Términos y Condiciones</span>
+                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                    </a>
                   )}
-
-                  <p className="text-xs text-muted-foreground">
-                    La conexión de wallet estará disponible cuando la infraestructura 
-                    blockchain esté lista.
-                  </p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -308,94 +433,5 @@ const Portal = () => {
     </div>
   );
 };
-
-function ParticipationCard({ participation }: { participation: any }) {
-  const statusColors: Record<string, string> = {
-    pending: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-    active: 'bg-secondary/10 text-secondary border-secondary/20',
-    closed: 'bg-muted text-muted-foreground border-border',
-  };
-
-  const statusLabels: Record<string, string> = {
-    pending: 'Pendiente',
-    active: 'Activo',
-    closed: 'Cerrado',
-  };
-
-  const typeLabels: Record<string, string> = {
-    investment: 'Inversión',
-    loan: 'Préstamo',
-  };
-
-  return (
-    <div className="p-4 rounded-xl bg-card border border-border/50 shadow-soft">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          {participation.type === 'investment' ? (
-            <TrendingUp className="h-5 w-5 text-primary" />
-          ) : (
-            <Wallet className="h-5 w-5 text-secondary" />
-          )}
-          <span className="font-semibold">{typeLabels[participation.type]}</span>
-        </div>
-        <Badge className={statusColors[participation.status]}>
-          {statusLabels[participation.status]}
-        </Badge>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div className="flex items-center gap-2">
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <p className="text-muted-foreground text-xs">Monto</p>
-            <p className="font-medium">{formatCurrency(Number(participation.amount))}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <p className="text-muted-foreground text-xs">Plazo</p>
-            <p className="font-medium">{participation.term_months} meses</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <p className="text-muted-foreground text-xs">Escenario</p>
-            <p className="font-medium">{getScenarioLabel(participation.scenario)}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <p className="text-muted-foreground text-xs">Registrado</p>
-            <p className="font-medium">
-              {new Date(participation.created_at).toLocaleDateString('es-MX', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {participation.estimated_return && (
-        <div className="mt-3 pt-3 border-t border-border">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">
-              {participation.type === 'investment' ? 'Rendimiento estimado' : 'Interés estimado'}
-            </span>
-            <span className={`font-semibold ${
-              participation.type === 'investment' ? 'text-secondary' : 'text-muted-foreground'
-            }`}>
-              {participation.type === 'investment' ? '+' : ''}{formatCurrency(Number(participation.estimated_return))}
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default Portal;
