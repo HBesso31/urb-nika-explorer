@@ -35,11 +35,11 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Contacto</h4>
             <ul className="space-y-2 text-sm text-primary-foreground/70">
               <li>
-                <a href="mailto:info@urbanika.mx" className="hover:text-primary-foreground transition-colors">
-                  info@urbanika.mx
+                <a href="mailto:info.urbanika@gmail.com" className="hover:text-primary-foreground transition-colors">
+                  info.urbanika@gmail.com
                 </a>
               </li>
-              <li>Valle de Bravo, México</li>
+              <li>Follow the white rabbit</li>
             </ul>
           </div>
         </div>

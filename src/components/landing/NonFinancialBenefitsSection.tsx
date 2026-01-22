@@ -7,7 +7,7 @@ const benefits = [
   {
     icon: Vote,
     title: 'Voz y Voto',
-    description: 'Participación activa en decisiones clave del proyecto. Tu opinión cuenta en el desarrollo de la comunidad.',
+    description: 'Opina y vota en decisiones clave del proyecto.',
     highlight: 'Desde $5,000 USD',
   },
   {

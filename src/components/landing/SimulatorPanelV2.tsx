@@ -265,7 +265,7 @@ function InvestmentSimulatorV2() {
         <div className="h-px bg-border" />
         
         <div className="flex justify-between items-center">
-          <span className="font-medium">Ganancias totales estimadas</span>
+          <span className="font-medium">Ganancias totales estimadas (rentas+venta)</span>
           <span className="text-xl font-display font-bold text-primary">
             +{formatAmount(results.totalGains)}
           </span>
