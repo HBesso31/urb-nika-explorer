@@ -108,6 +108,18 @@ export function calculateLoanAmortization(loanAmount: number) {
   const averagePayment = totalUserPayment / termMonths;
   const totalInterest = totalUserPayment - loanAmount;
   
+  // Total que recibes = principal + pagos mensuales
+  const totalReceived = loanAmount + totalUserPayment;
+  
+  // Debug temporal - remover después de verificar
+  console.log('[LoanCalc]', {
+    loanAmount,
+    participationPercent: (participationPercent * 100).toFixed(2) + '%',
+    totalUserPayment: Math.round(totalUserPayment),
+    averagePayment: Math.round(averagePayment),
+    totalReceived: Math.round(totalReceived),
+  });
+  
   return {
     loanAmount,
     participationPercent: participationPercent * 100,
@@ -116,6 +128,7 @@ export function calculateLoanAmortization(loanAmount: number) {
     lastMonthPayment: schedule[termMonths - 1]?.payment || 0,
     averagePayment: Math.round(averagePayment * 100) / 100,
     totalPayment: Math.round(totalUserPayment * 100) / 100,
+    totalReceived: Math.round(totalReceived * 100) / 100,
     totalInterest: Math.round(totalInterest * 100) / 100,
     schedule,
   };

@@ -466,7 +466,7 @@ function LoanSimulatorV2() {
         <div className="flex justify-between items-center">
           <span className="font-medium">Total que recibes</span>
           <span className="text-xl font-display font-bold text-secondary">
-            {formatAmount(result.totalPayment)}
+            {formatAmount(result.totalReceived)}
           </span>
         </div>
         <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">
