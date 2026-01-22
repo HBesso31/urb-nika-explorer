@@ -68,55 +68,60 @@ export const INVESTMENT_CONFIG = {
 // ===============================
 
 /**
- * Calculate loan amortization with decreasing interest
- * Amortizes the USER'S OWN CAPITAL (not a fund proportion)
- * Fixed capital payments + monthly interest on remaining user balance
+ * Calculate loan amortization using the Common Fund Model
+ * Amortizes the TOTAL FUND ($750,000) and calculates user's proportional payment
+ * This matches the Excel model "Simuladores para levantar capital"
  */
 export function calculateLoanAmortization(loanAmount: number) {
   const { annualRate, termMonths, roundGoal } = LOAN_CONFIG;
   const monthlyRate = annualRate / 100 / 12; // 1% mensual (12% anual)
   
-  // Capital fijo mensual del usuario (su propio préstamo / plazo)
-  const monthlyCapital = loanAmount / termMonths;
-  let balance = loanAmount;
+  // User's participation percentage in the fund
+  const participationPercent = loanAmount / roundGoal;
   
-  let totalPayment = 0;
+  // Amortization of the TOTAL FUND ($750,000)
+  const fundCapitalPayment = roundGoal / termMonths; // $15,625 fixed monthly
+  let fundBalance = roundGoal;
+  
+  let totalUserPayment = 0;
   const schedule: { month: number; capital: number; interest: number; payment: number; balance: number }[] = [];
   
   for (let month = 1; month <= termMonths; month++) {
-    // Interés sobre el balance del USUARIO (no del fondo)
-    const interest = balance * monthlyRate;
-    const payment = monthlyCapital + interest;
-    totalPayment += payment;
+    // Interest on FUND balance (not user's individual balance)
+    const fundInterest = fundBalance * monthlyRate;
+    const fundPayment = fundCapitalPayment + fundInterest;
+    
+    // User's payment = their % of the fund's payment
+    const userCapital = fundCapitalPayment * participationPercent;
+    const userInterest = fundInterest * participationPercent;
+    const userPayment = fundPayment * participationPercent;
+    totalUserPayment += userPayment;
     
     schedule.push({
       month,
-      capital: Math.round(monthlyCapital * 100) / 100,
-      interest: Math.round(interest * 100) / 100,
-      payment: Math.round(payment * 100) / 100,
-      balance: Math.round(balance * 100) / 100,
+      capital: Math.round(userCapital * 100) / 100,
+      interest: Math.round(userInterest * 100) / 100,
+      payment: Math.round(userPayment * 100) / 100,
+      balance: Math.round(fundBalance * participationPercent * 100) / 100,
     });
     
-    balance -= monthlyCapital;
+    fundBalance -= fundCapitalPayment;
   }
   
-  const averagePayment = totalPayment / termMonths;
-  const totalInterest = totalPayment - loanAmount;
+  const averagePayment = totalUserPayment / termMonths;
+  const totalInterest = totalUserPayment - loanAmount;
   
-  // Total que recibes = principal + intereses ganados
-  const totalReceived = totalPayment; // Equivalente a loanAmount + totalInterest
-  
-  // Participación en la ronda (solo para UI de progreso, NO afecta cálculos)
-  const participationPercent = (loanAmount / roundGoal) * 100;
+  // Total received = principal + interest earned
+  const totalReceived = loanAmount + totalInterest;
   
   return {
     loanAmount,
-    participationPercent, // Solo para UI de progreso
-    monthlyCapital: Math.round(monthlyCapital * 100) / 100,
+    participationPercent: participationPercent * 100, // As percentage for UI
+    monthlyCapital: Math.round(fundCapitalPayment * participationPercent * 100) / 100,
     firstMonthPayment: schedule[0]?.payment || 0,
     lastMonthPayment: schedule[termMonths - 1]?.payment || 0,
     averagePayment: Math.round(averagePayment * 100) / 100,
-    totalPayment: Math.round(totalPayment * 100) / 100,
+    totalPayment: Math.round(totalUserPayment * 100) / 100,
     totalReceived: Math.round(totalReceived * 100) / 100,
     totalInterest: Math.round(totalInterest * 100) / 100,
     schedule,
