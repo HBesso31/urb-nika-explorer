@@ -360,8 +360,7 @@ const Admin = () => {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Usuario</TableHead>
-                            <TableHead>Método</TableHead>
+                            <TableHead>Contacto</TableHead>
                             <TableHead>Vehículo</TableHead>
                             <TableHead className="text-right">MXN</TableHead>
                             <TableHead className="text-right">USD</TableHead>
@@ -375,25 +374,16 @@ const Admin = () => {
                           {crm.contributions.map((c) => (
                             <TableRow key={c.id}>
                               <TableCell>
-                                <div>
-                                  <p className="font-medium text-sm truncate max-w-[180px]">
-                                    {c.user_email || c.wallet_address?.slice(0, 10) + '...' || 'Sin identificador'}
-                                  </p>
-                                  {c.wallet_address && c.user_email && (
-                                    <p className="text-xs text-muted-foreground truncate max-w-[180px]">
-                                      {c.wallet_address.slice(0, 10)}...
-                                    </p>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline">
+                                <div className="flex items-center gap-2">
                                   {c.registration_method === 'wallet' ? (
-                                    <><Wallet className="h-3 w-3 mr-1" /> Wallet</>
+                                    <Wallet className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                   ) : (
-                                    <><Mail className="h-3 w-3 mr-1" /> Email</>
+                                    <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                   )}
-                                </Badge>
+                                  <span className="font-mono text-sm truncate max-w-[200px]">
+                                    {c.user_email || (c.wallet_address ? `${c.wallet_address.slice(0, 6)}...${c.wallet_address.slice(-4)}` : 'Sin identificador')}
+                                  </span>
+                                </div>
                               </TableCell>
                               <TableCell>{getVehicleBadge(c.vehicle)}</TableCell>
                               <TableCell className="text-right font-mono">
