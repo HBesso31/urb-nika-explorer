@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { usePrivyAuth } from './usePrivyAuth';
 import type { Scenario } from '@/lib/simulatorV2';
 import { simulateInvestmentV2, simulateLoanV2 } from '@/lib/simulatorV2';
 
@@ -29,23 +29,23 @@ export interface CreateParticipationInput {
 }
 
 export function useParticipations() {
-  const { user } = useAuth();
+  const { appUser } = usePrivyAuth();
   const [participations, setParticipations] = useState<Participation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!appUser) {
       setParticipations([]);
       setIsLoading(false);
       return;
     }
 
     fetchParticipations();
-  }, [user]);
+  }, [appUser]);
 
   const fetchParticipations = async () => {
-    if (!user) return;
+    if (!appUser) return;
     
     setIsLoading(true);
     setError(null);
@@ -67,7 +67,7 @@ export function useParticipations() {
   };
 
   const createParticipation = async (input: CreateParticipationInput) => {
-    if (!user) return { error: 'Not authenticated' };
+    if (!appUser) return { error: 'Not authenticated' };
 
     // Calculate estimated return based on type and scenario
     let estimatedReturn = 0;
@@ -90,7 +90,7 @@ export function useParticipations() {
     const { data, error: insertError } = await supabase
       .from('participations')
       .insert({
-        user_id: user.id,
+        user_id: appUser.id,
         type: input.type,
         amount: input.amount,
         term_months: input.termMonths,
