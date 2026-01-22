@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -27,13 +27,27 @@ import { useUserBenefits } from '@/hooks/useUserBenefits';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { formatMXN, formatUSD } from '@/lib/simulatorConfig';
 
+// Portal-specific components
+import { PortalSimulator, SimulatorValues } from '@/components/portal/PortalSimulator';
+import { DepositAddress } from '@/components/portal/DepositAddress';
+import { TransactionForm } from '@/components/portal/TransactionForm';
+import { UserTransactions } from '@/components/portal/UserTransactions';
+
 const Portal = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, signOut } = useAuth();
-  const { contributions, isLoading: contributionsLoading, totalContributedMXN, totalContributedUSD } = useContributions();
+  const { contributions, isLoading: contributionsLoading, totalContributedMXN, totalContributedUSD, refresh: refreshContributions } = useContributions();
   const { payouts, isLoading: payoutsLoading, totalReceivedMXN, totalReceivedUSD } = usePayouts();
   const { userBenefits, unlockedBenefits, lockedBenefits, isLoading: benefitsLoading } = useUserBenefits();
   const { settings, isLoading: settingsLoading } = useSiteSettings();
+
+  // Simulator values for form pre-fill
+  const [simulatorValues, setSimulatorValues] = useState<SimulatorValues>({
+    vehicle: 'investment',
+    amountMXN: 50000,
+    amountUSD: 0,
+    currency: 'MXN',
+  });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -45,6 +59,14 @@ const Portal = () => {
     await signOut();
     navigate('/');
   };
+
+  const handleSimulatorChange = useCallback((values: SimulatorValues) => {
+    setSimulatorValues(values);
+  }, []);
+
+  const handleTransactionSuccess = useCallback(() => {
+    refreshContributions();
+  }, [refreshContributions]);
 
   if (authLoading) {
     return (
@@ -121,11 +143,51 @@ const Portal = () => {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main column */}
           <div className="lg:col-span-2 space-y-6">
-            {/* A) Resumen de participación */}
+            {/* Simulator Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+            >
+              <PortalSimulator onValuesChange={handleSimulatorChange} />
+            </motion.div>
+
+            {/* Deposit Address + Transaction Form */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
+              className="grid md:grid-cols-2 gap-6"
+            >
+              <DepositAddress 
+                address={settings?.deposit_address} 
+                isLoading={settingsLoading} 
+              />
+              <TransactionForm
+                defaultVehicle={simulatorValues.vehicle}
+                defaultAmountMXN={simulatorValues.amountMXN}
+                defaultCurrency={simulatorValues.currency}
+                onSuccess={handleTransactionSuccess}
+              />
+            </motion.div>
+
+            {/* User Transactions List */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <UserTransactions 
+                contributions={contributions} 
+                isLoading={contributionsLoading} 
+              />
+            </motion.div>
+
+            {/* Summary Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
             >
               <Card className="shadow-soft">
                 <CardHeader>
@@ -134,69 +196,15 @@ const Portal = () => {
                     Resumen de Participación
                   </CardTitle>
                   <CardDescription>
-                    Tu aporte y lo que has recibido
+                    Tu aporte total y lo que has recibido
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isLoading ? (
-                    <div className="space-y-4">
-                      <Skeleton className="h-24 w-full" />
-                      <Skeleton className="h-24 w-full" />
-                    </div>
-                  ) : contributions.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-sm mb-4">Aún no tienes aportes registrados</p>
-                      <Link to="/">
-                        <Button variant="outline" size="sm" className="gap-2">
-                          Explorar simulador
-                        </Button>
-                      </Link>
-                    </div>
+                    <Skeleton className="h-24 w-full" />
                   ) : (
-                    <div className="space-y-6">
-                      {/* Contributions list */}
-                      {contributions.map((contribution) => (
-                        <div 
-                          key={contribution.id}
-                          className="p-4 rounded-xl bg-card border border-border/50"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              {contribution.vehicle === 'investment' ? (
-                                <TrendingUp className="h-5 w-5 text-primary" />
-                              ) : (
-                                <Wallet className="h-5 w-5 text-secondary" />
-                              )}
-                              <span className="font-semibold">
-                                {getVehicleName(contribution.vehicle)}
-                              </span>
-                            </div>
-                            {getStatusBadge(contribution.status)}
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Monto aportado</p>
-                              <p className="font-semibold text-lg">{formatMXN(Number(contribution.amount_mxn))}</p>
-                              <p className="text-sm text-muted-foreground">{formatUSD(Number(contribution.amount_usd))}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Fecha</p>
-                              <p className="font-medium">
-                                {new Date(contribution.created_at).toLocaleDateString('es-MX', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric',
-                                })}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-
+                    <div className="space-y-4">
                       {/* Totals summary */}
-                      <Separator />
                       <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
                           <p className="text-sm text-muted-foreground mb-1">Total Aportado</p>
@@ -248,11 +256,11 @@ const Portal = () => {
               </Card>
             </motion.div>
 
-            {/* B) Beneficios del usuario */}
+            {/* Benefits Section */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.25 }}
             >
               <Card className="shadow-soft">
                 <CardHeader>
@@ -331,7 +339,7 @@ const Portal = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* C) Contacto */}
+            {/* Contact */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -397,7 +405,7 @@ const Portal = () => {
               </Card>
             </motion.div>
 
-            {/* D) Términos y condiciones */}
+            {/* Documents */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
