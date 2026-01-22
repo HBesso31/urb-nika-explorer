@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_users: {
+        Row: {
+          auth_method: Database["public"]["Enums"]["auth_method"]
+          created_at: string
+          email: string | null
+          id: string
+          privy_user_id: string
+          updated_at: string
+          wallet_address: string | null
+        }
+        Insert: {
+          auth_method?: Database["public"]["Enums"]["auth_method"]
+          created_at?: string
+          email?: string | null
+          id?: string
+          privy_user_id: string
+          updated_at?: string
+          wallet_address?: string | null
+        }
+        Update: {
+          auth_method?: Database["public"]["Enums"]["auth_method"]
+          created_at?: string
+          email?: string | null
+          id?: string
+          privy_user_id?: string
+          updated_at?: string
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
       benefits: {
         Row: {
           created_at: string
@@ -48,6 +78,7 @@ export type Database = {
         Row: {
           amount_mxn: number
           amount_usd: number
+          app_user_id: string | null
           created_at: string
           financial_contract: string | null
           id: string
@@ -61,6 +92,7 @@ export type Database = {
         Insert: {
           amount_mxn: number
           amount_usd: number
+          app_user_id?: string | null
           created_at?: string
           financial_contract?: string | null
           id?: string
@@ -74,6 +106,7 @@ export type Database = {
         Update: {
           amount_mxn?: number
           amount_usd?: number
+          app_user_id?: string | null
           created_at?: string
           financial_contract?: string | null
           id?: string
@@ -84,7 +117,15 @@ export type Database = {
           user_id?: string
           vehicle?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contributions_app_user_id_fkey"
+            columns: ["app_user_id"]
+            isOneToOne: false
+            referencedRelation: "app_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       participations: {
         Row: {
@@ -287,6 +328,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      auth_method: "wallet" | "email"
       participation_status: "pending" | "active" | "closed"
       participation_type: "investment" | "loan"
       scenario_type: "conservative" | "base" | "optimistic"
@@ -418,6 +460,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      auth_method: ["wallet", "email"],
       participation_status: ["pending", "active", "closed"],
       participation_type: ["investment", "loan"],
       scenario_type: ["conservative", "base", "optimistic"],

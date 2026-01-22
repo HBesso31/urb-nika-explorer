@@ -6,7 +6,6 @@ import { Loader2, Send, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -25,9 +24,8 @@ import {
 } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { EXCHANGE_RATE_USD_TO_MXN, formatMXN, formatUSD, mxnToUsd } from '@/lib/simulatorConfig';
+import { EXCHANGE_RATE_USD_TO_MXN, formatUSD, mxnToUsd } from '@/lib/simulatorConfig';
 import type { Vehicle, Currency } from './PortalSimulator';
 
 const transactionSchema = z.object({
@@ -49,6 +47,7 @@ interface TransactionFormProps {
   defaultVehicle?: Vehicle;
   defaultAmountMXN?: number;
   defaultCurrency?: Currency;
+  appUserId?: string;
   onSuccess?: () => void;
 }
 
@@ -56,9 +55,9 @@ export function TransactionForm({
   defaultVehicle = 'investment', 
   defaultAmountMXN = 0,
   defaultCurrency = 'MXN',
+  appUserId,
   onSuccess,
 }: TransactionFormProps) {
-  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<TransactionFormValues>({
@@ -82,7 +81,7 @@ export function TransactionForm({
   const amountUSD = watchedAmount ? mxnToUsd(watchedAmount) : 0;
 
   const onSubmit = async (data: TransactionFormValues) => {
-    if (!user) {
+    if (!appUserId) {
       toast.error('Debes iniciar sesión para registrar una transacción');
       return;
     }
@@ -94,7 +93,8 @@ export function TransactionForm({
     // The admin or an automated process will update to 'confirmed' after verification
 
     const { error } = await supabase.from('contributions').insert({
-      user_id: user.id,
+      app_user_id: appUserId,
+      user_id: appUserId, // Using app_user_id as user_id for now
       vehicle: data.vehicle,
       amount_mxn: data.amountMXN,
       amount_usd: mxnToUsd(data.amountMXN),
@@ -263,7 +263,7 @@ export function TransactionForm({
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isSubmitting}
+              disabled={isSubmitting || !appUserId}
             >
               {isSubmitting ? (
                 <>

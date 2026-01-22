@@ -1,1 +1,4 @@
 project_id = "hilklzcuygzjoezelpii"
+
+[functions.privy-sync-user]
+verify_jwt = false

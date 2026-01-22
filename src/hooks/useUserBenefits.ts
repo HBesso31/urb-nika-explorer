@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
 
 export type BenefitStatus = 'locked' | 'unlocked';
 
@@ -14,41 +13,32 @@ export interface UserBenefit {
   created_at: string;
 }
 
-export function useUserBenefits() {
-  const { user } = useAuth();
+// TODO: Add app_user_id to user_benefits table when needed
+// For now, benefits will be empty for Privy users until migration is complete
+export function useUserBenefits(appUserId?: string) {
   const [userBenefits, setUserBenefits] = useState<UserBenefit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) {
+  const fetchUserBenefits = useCallback(async () => {
+    if (!appUserId) {
       setUserBenefits([]);
       setIsLoading(false);
       return;
     }
-    fetchUserBenefits();
-  }, [user]);
-
-  const fetchUserBenefits = async () => {
-    if (!user) return;
     
     setIsLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
-      .from('user_benefits')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (fetchError) {
-      setError(fetchError.message);
-      setIsLoading(false);
-      return;
-    }
-
-    setUserBenefits((data || []) as unknown as UserBenefit[]);
+    // TODO: Update query when app_user_id is added to user_benefits table
+    // For now, return empty - Privy users don't have benefits linked yet
+    setUserBenefits([]);
     setIsLoading(false);
-  };
+  }, [appUserId]);
+
+  useEffect(() => {
+    fetchUserBenefits();
+  }, [fetchUserBenefits]);
 
   const unlockedBenefits = userBenefits.filter(b => b.status === 'unlocked');
   const lockedBenefits = userBenefits.filter(b => b.status === 'locked');

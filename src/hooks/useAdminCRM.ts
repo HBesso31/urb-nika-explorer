@@ -4,8 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 export interface CRMContribution {
   id: string;
   user_id: string;
+  app_user_id: string | null;
   user_email: string | null;
   user_name: string | null;
+  wallet_address: string | null;
   registration_method: 'email' | 'wallet';
   vehicle: string;
   amount_mxn: number;
@@ -19,6 +21,14 @@ export interface CRMContribution {
 
 export type VehicleFilter = 'all' | 'loan' | 'investment';
 export type StatusFilter = 'all' | 'pending' | 'confirmed' | 'failed';
+
+interface AppUser {
+  id: string;
+  privy_user_id: string;
+  email: string | null;
+  wallet_address: string | null;
+  auth_method: 'wallet' | 'email';
+}
 
 export function useAdminCRM() {
   const [contributions, setContributions] = useState<CRMContribution[]>([]);
@@ -38,7 +48,7 @@ export function useAdminCRM() {
     setError(null);
 
     try {
-      // Fetch contributions with user profiles
+      // Fetch contributions
       const { data: contributionsData, error: contribError } = await supabase
         .from('contributions')
         .select('*')
@@ -46,34 +56,68 @@ export function useAdminCRM() {
 
       if (contribError) throw contribError;
 
-      // Get unique user IDs
-      const userIds = [...new Set(contributionsData?.map(c => c.user_id) || [])];
+      // Get unique app_user_ids (for Privy users)
+      const appUserIds = [...new Set(
+        (contributionsData || [])
+          .map(c => c.app_user_id)
+          .filter(Boolean)
+      )];
 
-      // Fetch profiles for those users
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name')
-        .in('user_id', userIds);
+      // Get unique user_ids (for legacy Supabase auth users)
+      const legacyUserIds = [...new Set(
+        (contributionsData || [])
+          .filter(c => !c.app_user_id)
+          .map(c => c.user_id)
+      )];
 
-      if (profilesError) throw profilesError;
+      // Fetch app_users for Privy users
+      let appUsersMap = new Map<string, AppUser>();
+      if (appUserIds.length > 0) {
+        const { data: appUsersData, error: appUsersError } = await supabase
+          .from('app_users')
+          .select('*')
+          .in('id', appUserIds);
 
-      // Fetch user emails from auth (via profiles user_id match)
-      // Since we can't query auth.users directly, we'll use the user_id
-      // For V2-A, we'll show "email" as registration method since Privy isn't integrated yet
-      
-      const profilesMap = new Map(
-        profilesData?.map(p => [p.user_id, p]) || []
-      );
+        if (appUsersError) {
+          console.warn('Error fetching app_users:', appUsersError);
+        } else {
+          appUsersMap = new Map(
+            (appUsersData || []).map(u => [u.id, u as AppUser])
+          );
+        }
+      }
+
+      // Fetch profiles for legacy users
+      let profilesMap = new Map<string, { full_name: string | null }>();
+      if (legacyUserIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', legacyUserIds);
+
+        if (profilesError) {
+          console.warn('Error fetching profiles:', profilesError);
+        } else {
+          profilesMap = new Map(
+            (profilesData || []).map(p => [p.user_id, p])
+          );
+        }
+      }
 
       // Transform data for CRM view
       const crmData: CRMContribution[] = (contributionsData || []).map(c => {
-        const profile = profilesMap.get(c.user_id);
+        // Check if this is a Privy user (has app_user_id)
+        const appUser = c.app_user_id ? appUsersMap.get(c.app_user_id) : null;
+        const legacyProfile = !c.app_user_id ? profilesMap.get(c.user_id) : null;
+
         return {
           id: c.id,
           user_id: c.user_id,
-          user_email: null, // Will be fetched separately if needed
-          user_name: profile?.full_name || null,
-          registration_method: 'email' as const, // Default for V2-A (no Privy yet)
+          app_user_id: c.app_user_id || null,
+          user_email: appUser?.email || null,
+          user_name: legacyProfile?.full_name || null,
+          wallet_address: appUser?.wallet_address || null,
+          registration_method: appUser?.auth_method || 'email',
           vehicle: c.vehicle,
           amount_mxn: c.amount_mxn,
           amount_usd: c.amount_usd,
