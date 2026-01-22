@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Settings, 
@@ -8,10 +8,12 @@ import {
   Mail,
   Phone,
   FileText,
-  CheckCircle,
   AlertCircle,
   ArrowLeft,
+  ShieldAlert,
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,6 +23,8 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { toast } from 'sonner';
 
 const Admin = () => {
+  const { user, isLoading: authLoading } = useAuth();
+  const { isAdmin, isLoading: roleLoading } = useUserRole();
   const { settings, rawSettings, isLoading, updateSettings } = useSiteSettings();
   const [isSaving, setIsSaving] = useState(false);
   
@@ -44,6 +48,46 @@ const Admin = () => {
       terms_url: settings.terms_url,
     });
     setFormInitialized(true);
+  }
+
+  // Auth & role loading state
+  if (authLoading || roleLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Verificando permisos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if not authenticated
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Access denied if not admin
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <Card className="shadow-soft max-w-md mx-4">
+          <CardContent className="py-12 text-center">
+            <ShieldAlert className="h-12 w-12 mx-auto mb-4 text-destructive" />
+            <h2 className="text-xl font-semibold mb-2">Acceso Denegado</h2>
+            <p className="text-muted-foreground mb-6">
+              No tienes permisos de administrador para acceder a esta sección.
+            </p>
+            <Link to="/portal">
+              <Button className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Ir al Portal
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const handleChange = (field: keyof typeof formData, value: string) => {
