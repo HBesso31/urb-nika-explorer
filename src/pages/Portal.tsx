@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { usePrivyAuth } from '@/hooks/usePrivyAuth';
@@ -26,9 +25,8 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { formatMXN, formatUSD } from '@/lib/simulatorConfig';
 
 // Portal-specific components
-import { PortalSimulator, SimulatorValues } from '@/components/portal/PortalSimulator';
-import { DepositAddress } from '@/components/portal/DepositAddress';
-import { TransactionForm } from '@/components/portal/TransactionForm';
+import { ContributionSummary, ContributionValues } from '@/components/portal/ContributionSummary';
+import { ContributionWizard } from '@/components/portal/ContributionWizard';
 import { UserTransactions } from '@/components/portal/UserTransactions';
 
 const Portal = () => {
@@ -43,8 +41,9 @@ const Portal = () => {
   const { userBenefits, unlockedBenefits, lockedBenefits, isLoading: benefitsLoading } = useUserBenefits(appUserId);
   const { settings, isLoading: settingsLoading } = useSiteSettings();
 
-  // Simulator values for form pre-fill
-  const [simulatorValues, setSimulatorValues] = useState<SimulatorValues>({
+  // Wizard state
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardValues, setWizardValues] = useState<ContributionValues>({
     vehicle: 'investment',
     amountMXN: 50000,
     amountUSD: 0,
@@ -62,11 +61,12 @@ const Portal = () => {
     navigate('/');
   };
 
-  const handleSimulatorChange = useCallback((values: SimulatorValues) => {
-    setSimulatorValues(values);
+  const handleAportar = useCallback((values: ContributionValues) => {
+    setWizardValues(values);
+    setWizardOpen(true);
   }, []);
 
-  const handleTransactionSuccess = useCallback(() => {
+  const handleWizardSuccess = useCallback(() => {
     refreshContributions();
   }, [refreshContributions]);
 
@@ -93,6 +93,9 @@ const Portal = () => {
     const d = new Date(date);
     return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
   };
+
+  // Deposit address with fallback
+  const depositAddress = settings?.deposit_address || 'urbanika.eth';
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -139,40 +142,20 @@ const Portal = () => {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main column */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Simulator Section */}
+            {/* Contribution Summary (replaces simulator) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
             >
-              <PortalSimulator onValuesChange={handleSimulatorChange} />
-            </motion.div>
-
-            {/* Deposit Address + Transaction Form */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="grid md:grid-cols-2 gap-6"
-            >
-              <DepositAddress 
-                address={settings?.deposit_address} 
-                isLoading={settingsLoading} 
-              />
-              <TransactionForm
-                defaultVehicle={simulatorValues.vehicle}
-                defaultAmountMXN={simulatorValues.amountMXN}
-                defaultCurrency={simulatorValues.currency}
-                appUserId={appUserId}
-                onSuccess={handleTransactionSuccess}
-              />
+              <ContributionSummary onAportar={handleAportar} />
             </motion.div>
 
             {/* User Transactions List */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
+              transition={{ delay: 0.1 }}
             >
               <UserTransactions 
                 contributions={contributions} 
@@ -184,7 +167,7 @@ const Portal = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.15 }}
             >
               <Card className="shadow-soft">
                 <CardHeader>
@@ -257,7 +240,7 @@ const Portal = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
+              transition={{ delay: 0.2 }}
             >
               <Card className="shadow-soft">
                 <CardHeader>
@@ -404,6 +387,16 @@ const Portal = () => {
           </div>
         </div>
       </main>
+
+      {/* Contribution Wizard Modal */}
+      <ContributionWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        depositAddress={depositAddress}
+        values={wizardValues}
+        appUserId={appUserId}
+        onSuccess={handleWizardSuccess}
+      />
     </div>
   );
 };
