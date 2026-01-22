@@ -16,26 +16,22 @@ interface ContributionRequest {
   txHash: string;
 }
 
+// Decode base64url to string (for JWT parsing)
 function decodeBase64Url(input: string): string {
-  // base64url -> base64
   const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
-  // Pad to multiple of 4
   const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
   const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
   return new TextDecoder().decode(bytes);
 }
 
-function getPrivyAppIdFromToken(token: string): string | null {
-  // JWT: header.payload.signature
+// Extract claims from JWT without verification (we verify via Privy API)
+function parseJwtPayload(token: string): Record<string, unknown> | null {
   const parts = token.split(".");
   if (parts.length < 2) return null;
 
   try {
     const payloadJson = decodeBase64Url(parts[1]);
-    const payload = JSON.parse(payloadJson);
-    const aud = payload?.aud;
-    if (typeof aud === "string" && aud.length > 0) return aud;
-    return null;
+    return JSON.parse(payloadJson);
   } catch {
     return null;
   }
@@ -65,20 +61,28 @@ serve(async (req) => {
 
     const privyToken = authHeader.replace("Bearer ", "");
 
-    // Verify Privy token
-    // IMPORTANT: do NOT use VITE_* vars inside edge functions.
-    // We derive the Privy app id from the token's `aud` claim.
-    const privyAppId = getPrivyAppIdFromToken(privyToken);
-    const privyAppSecret = Deno.env.get("PRIVY_APP_SECRET");
-
-    if (!privyAppId) {
-      console.error("Could not derive Privy app id from token (missing aud)");
+    // Parse the JWT to get the Privy App ID (from 'aid' claim) and user ID (from 'sub' claim)
+    const jwtPayload = parseJwtPayload(privyToken);
+    if (!jwtPayload) {
+      console.error("Could not parse JWT payload");
       return new Response(
-        JSON.stringify({ error: "Invalid authentication token" }),
+        JSON.stringify({ error: "Invalid authentication token format" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const privyAppId = jwtPayload.aid as string;
+    const privyUserId = jwtPayload.sub as string;
+
+    if (!privyAppId || !privyUserId) {
+      console.error("Missing required JWT claims:", { aid: privyAppId, sub: privyUserId });
+      return new Response(
+        JSON.stringify({ error: "Invalid authentication token: missing claims" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const privyAppSecret = Deno.env.get("PRIVY_APP_SECRET");
     if (!privyAppSecret) {
       console.error("PRIVY_APP_SECRET not configured");
       return new Response(
@@ -87,32 +91,34 @@ serve(async (req) => {
       );
     }
 
-    // Verify token with Privy
-    const verifyResponse = await fetch("https://auth.privy.io/api/v1/token/verify", {
-      method: "POST",
+    // Verify token with Privy using the sessions endpoint (validates the access token)
+    // The access token is used as Bearer auth to fetch the user's session
+    const verifyResponse = await fetch("https://auth.privy.io/api/v1/users/me", {
+      method: "GET",
       headers: {
         "Content-Type": "application/json",
         "privy-app-id": privyAppId,
-        Authorization: `Basic ${btoa(`${privyAppId}:${privyAppSecret}`)}`,
+        "Authorization": `Bearer ${privyToken}`,
       },
-      body: JSON.stringify({ token: privyToken }),
     });
 
     if (!verifyResponse.ok) {
       const bodyText = await verifyResponse.text();
-      console.error("Privy token verification failed:", bodyText || "<empty response body>");
+      console.error("Privy token verification failed:", verifyResponse.status, bodyText || "<empty>");
       return new Response(
         JSON.stringify({ error: "Invalid authentication token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const verifyData = await verifyResponse.json();
-    const privyUserId = verifyData.user_id;
-
-    if (!privyUserId) {
+    const userData = await verifyResponse.json();
+    // The user ID from the /users/me endpoint should match the JWT 'sub' claim
+    const verifiedUserId = userData.id;
+    
+    if (verifiedUserId !== privyUserId) {
+      console.error("User ID mismatch from Privy:", { jwt: privyUserId, api: verifiedUserId });
       return new Response(
-        JSON.stringify({ error: "Could not extract user ID from token" }),
+        JSON.stringify({ error: "Token validation failed" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
