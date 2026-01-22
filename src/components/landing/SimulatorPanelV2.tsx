@@ -17,7 +17,7 @@ import {
   getInvestmentBenefits,
   formatByCurrency,
 } from '@/lib/simulatorConfig';
-import { useAuth } from '@/hooks/useAuth';
+import { usePrivyAuth } from '@/hooks/usePrivyAuth';
 import { useParticipations, CreateParticipationInput } from '@/hooks/useParticipations';
 import { toast } from 'sonner';
 
@@ -147,7 +147,7 @@ export function SimulatorPanelV2({ activeTab = 'investment', onTabChange }: Simu
 
 function InvestmentSimulatorV2() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { isAuthenticated, appUser } = usePrivyAuth();
   const { createParticipation } = useParticipations();
   const { formatAmount } = useCurrency();
   
@@ -171,7 +171,7 @@ function InvestmentSimulatorV2() {
   }, [amount]);
 
   const handleDeclareIntent = async () => {
-    if (!user) {
+    if (!isAuthenticated || !appUser) {
       navigate('/auth?mode=register&intent=investment');
       return;
     }
@@ -313,7 +313,7 @@ function InvestmentSimulatorV2() {
           </>
         ) : (
           <>
-            {user ? 'Declarar intención' : 'Regístrate para participar'}
+             {isAuthenticated ? 'Declarar intención' : 'Regístrate para participar'}
             <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </>
         )}
@@ -324,7 +324,7 @@ function InvestmentSimulatorV2() {
 
 function LoanSimulatorV2() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { isAuthenticated, appUser } = usePrivyAuth();
   const { createParticipation } = useParticipations();
   const { formatAmount } = useCurrency();
   
@@ -340,7 +340,7 @@ function LoanSimulatorV2() {
   const progressPercent = Math.min((LOAN_CONFIG.currentProgress / LOAN_CONFIG.roundGoal) * 100, 100);
 
   const handleDeclareIntent = async () => {
-    if (!user) {
+    if (!isAuthenticated || !appUser) {
       navigate('/auth?mode=register&intent=loan');
       return;
     }
@@ -489,7 +489,7 @@ function LoanSimulatorV2() {
           </>
         ) : (
           <>
-            {user ? 'Declarar intención' : 'Regístrate para participar'}
+            {isAuthenticated ? 'Declarar intención' : 'Regístrate para participar'}
             <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </>
         )}
